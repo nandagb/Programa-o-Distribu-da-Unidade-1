@@ -1,11 +1,13 @@
 package ufrn.imd.br.UDP.client;
 
+import ufrn.imd.br.Strategy;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 
-class UDPClient {
+public class UDPClient {
     public UDPClient() {
         System.out.println("UDP Client Messenger");
 

@@ -4,13 +4,23 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 
+import ufrn.imd.br.Strategy;
 import ufrn.imd.br.model.Message;
+import ufrn.imd.br.service.Service;
 
-public class UDPServer {
+public class UDPServer implements Strategy{
     private Message wppMessage;
+	private String port;
 
     public UDPServer(String port){
-        wppMessage = new Message();
+		this.port = port;
+    }
+
+	public void interfaceMethod(Service service){
+        System.out.println("This is the UDP Server Strategy!");
+
+
+		wppMessage = new Message();
         System.out.println("UDP Server Messenger started");
 
         try {
@@ -24,6 +34,8 @@ public class UDPServer {
                                             // dados,              posição inicial, quantidade de bytes
                 String message = new String(clientPacket.getData(), 0,       clientPacket.getLength());
                 System.out.println("Server received this message: " + message);
+				//call this inside the while loop of the server
+				service.processMessage(message);
 
 
 			}
@@ -35,6 +47,7 @@ public class UDPServer {
 		} catch (Exception e) {
 			System.out.println("Erro inesperado: " + e.getMessage());
 		}
+
     }
 
     public static void main(String[] args) {
