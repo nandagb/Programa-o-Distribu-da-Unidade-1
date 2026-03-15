@@ -1,0 +1,71 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run UDP Client",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.UDP.client.UDPClient",
+        },
+        {
+            "type": "java",
+            "name": "Run UDP Messages",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.Application",
+            "args": ["udp", "messages"]
+        },
+        {
+            "type": "java",
+            "name": "Run UDP Users",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.Application",
+            "args": ["udp", "users"]
+        },
+        {
+            "type": "java",
+            "name": "Run TCP Messages",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.Application",
+            "args": ["tcp", "messages"]
+        },
+        {
+            "type": "java",
+            "name": "Run TCP Users",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.Application",
+            "args": ["tcp", "users"]
+        },
+        {
+            "type": "java",
+            "name": "Run HTTP Messages",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.Application",
+            "args": ["http", "messages"]
+        },
+        {
+            "type": "java",
+            "name": "Run HTTP Users",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.Application",
+            "args": ["http", "users"]
+        },
+        {
+            "type": "java",
+            "name": "Run GRPC Messages",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.Application",
+            "args": ["grpc", "messages"]
+        },
+        {
+            "type": "java",
+            "name": "Run GRPC Users",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.Application",
+            "args": ["grpc", "users"]
+        }
+
+    ]
+}
