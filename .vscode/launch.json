@@ -6,16 +6,29 @@
     "configurations": [
         {
             "type": "java",
+            "name": "Run Gateway",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.APIGateway",
+        },
+        {
+            "type": "java",
             "name": "Run UDP Client",
             "request": "launch",
             "mainClass": "ufrn.imd.br.UDP.client.UDPClient",
         },
         {
             "type": "java",
-            "name": "Run UDP Messages",
+            "name": "Run UDP Messages 1",
             "request": "launch",
             "mainClass": "ufrn.imd.br.Application",
-            "args": ["udp", "messages"]
+            "args": ["udp", "messages", "1"]
+        },
+        {
+            "type": "java",
+            "name": "Run UDP Messages 2",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.Application",
+            "args": ["udp", "messages", "2"]
         },
         {
             "type": "java",

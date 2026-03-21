@@ -15,11 +15,21 @@ public class Application {
         }
 
         String protocol = args[0];
+        int instance = Integer.parseInt(args[2]);
+        String port;
+
+        switch(instance) {
+            case 2:
+                port = "9005";
+                break;
+            default:
+                port = "9004";
+        }
 
         switch(protocol) {
             case "udp":
                 System.out.println("opção udp selecionada");
-                context.setStrategy(new UDPServer("9004"));
+                context.setStrategy(new UDPServer(port));
                 break;
             case "tcp":
                 System.out.println("opção tcp selecionada");
