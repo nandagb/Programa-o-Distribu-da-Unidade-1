@@ -10,16 +10,23 @@ import java.util.HashMap;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 
+import ufrn.imd.br.TCP.TCPServer;
+import ufrn.imd.br.UDP.server.UDPServer;
+import ufrn.imd.br.model.Message;
 import ufrn.imd.br.model.ServiceRecord;
 
 public class APIGateway {
     private ConcurrentHashMap<String, ServiceRecord> servicesTable;
-    private DatagramSocket heartBeatSocket;
     private int heartBeatTimeout = 3000;
     private int failureDetectorInterval = 1000;
+    private DatagramSocket heartBeatSocket;
+    private int heartBeatGatewayPort = 9000;
+    private int ServerGatewayPort = 9001;
 
-    public APIGateway(int port) throws Exception {
-        heartBeatSocket = new DatagramSocket(port);
+    public APIGateway() throws Exception {
+        System.out.println("right before connecting heartbeat on gateway");
+
+        heartBeatSocket = new DatagramSocket(heartBeatGatewayPort);
         servicesTable = new ConcurrentHashMap<>();
     }
 
@@ -75,7 +82,7 @@ public class APIGateway {
 				//converte mensagem do servidor em bytes para texto
                                             // dados,              posição inicial, quantidade de bytes
                 String message = new String(serverPacket.getData(), 0,       serverPacket.getLength());
-                System.out.println("Gateway received this message: " + message);
+                System.out.println("Gateway received this message from the heartbeat: " + message);
 
                 updateService(message);
 
@@ -112,9 +119,92 @@ public class APIGateway {
         }
     }
 
+    public void UDPServer(){
+        DatagramSocket socket;
+
+		try {
+            System.out.println("right before connecting udpserver on gateway");
+            socket = new DatagramSocket(this.ServerGatewayPort);
+			while (true) {
+                //receives messages from client
+				byte[] clientMessage = new byte[1024];
+				DatagramPacket clientPacket = new DatagramPacket(clientMessage, clientMessage.length);
+				socket.receive(clientPacket);
+
+				//converte mensagem do cliente em bytes para texto
+                                            // dados,              posição inicial, quantidade de bytes
+                String message = new String(clientPacket.getData(), 0,       clientPacket.getLength());
+                //decodes message
+                System.out.println("Gateway received this message from the client: " + message);
+                clientPacket.setAddress(InetAddress.getByName("localhost"));
+
+                StringTokenizer tokenizer = new StringTokenizer(message, ";");
+                String service = null;
+                int messageSender = 0;
+                int messageReceiver = 0;
+                String messageContent = null;
+
+                while (tokenizer.hasMoreElements()) {
+                    service = tokenizer.nextToken();
+                    messageSender = Integer.parseInt(tokenizer.nextToken());
+                    messageReceiver = Integer.parseInt(tokenizer.nextToken());
+                    messageContent = tokenizer.nextToken();
+                }
+				
+                switch(service) {
+                    case "messages":
+                        //TODO: round robin pra decidir qual instancia do servidor vai ser usada
+                        System.out.println("Sending request to messages server 1");
+                        clientPacket.setPort(9004);
+                        break;
+                    default:
+                        System.out.println("No service specified");
+                }
+                //sends message to correct server
+
+                socket.send(clientPacket);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (NumberFormatException nfe) {
+			System.out.println("Erro ao converter numero: " + nfe.getMessage());
+
+		} catch (Exception e) {
+			System.out.println("Erro inesperado: " + e.getMessage());
+		}
+
+    }
+
     public static void main(String[] args) {
+        if (args.length == 0) {
+            System.out.println("Erro! Nenhum argumento fornecido");
+            return;
+        }
+
+        String protocol = args[0];
+
         try {
-            APIGateway gateway = new APIGateway(9000);
+
+            APIGateway gateway = new APIGateway();
+
+            switch(protocol) {
+            case "udp":
+                System.out.println("opção udp selecionada");
+                new Thread(() -> gateway.UDPServer()).start();
+                // context.setStrategy(new UDPServer(port));
+                break;
+            case "tcp":
+                System.out.println("opção tcp selecionada");
+                // context.setStrategy(new TCPServer());
+                break;
+            // case "http":
+            //     break;
+            // case "grpc":
+            //     break;
+            default:
+                System.out.println("Opção inválida!");
+        }
+
             new Thread(() -> gateway.listen()).start();
             new Thread(() -> gateway.failureDetector()).start();
 		} catch (SocketException e) {

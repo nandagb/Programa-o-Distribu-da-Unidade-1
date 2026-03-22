@@ -9,6 +9,7 @@
             "name": "Run Gateway",
             "request": "launch",
             "mainClass": "ufrn.imd.br.APIGateway",
+            "args": ["udp"]
         },
         {
             "type": "java",

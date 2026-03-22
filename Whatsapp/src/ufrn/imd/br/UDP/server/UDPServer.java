@@ -28,7 +28,7 @@ public class UDPServer implements Strategy{
         System.out.println("UDP Server Messenger started");
 
 		try {
-			serverSocket = new DatagramSocket(Integer.parseInt(port));
+			serverSocket = new DatagramSocket(Integer.parseInt(this.port));
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
