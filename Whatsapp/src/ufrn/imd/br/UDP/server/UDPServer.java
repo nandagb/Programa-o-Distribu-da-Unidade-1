@@ -13,7 +13,9 @@ import ufrn.imd.br.service.Service;
 public class UDPServer implements Strategy{
     private Message wppMessage;
 	private String port;
-	DatagramSocket serverSocket;
+	private DatagramSocket serverSocket;
+	private int heartBeatInterval = 1000;
+	private int gatewayPort = 9000;
 
     public UDPServer(String port){
 		this.port = port;
@@ -32,7 +34,7 @@ public class UDPServer implements Strategy{
 			e.printStackTrace();
 		}
 
-		new Thread(() -> sendHeartbeat(serverSocket)).start();
+		new Thread(() -> sendHeartbeat()).start();
 
 		try {
 			while (true) {
@@ -60,22 +62,23 @@ public class UDPServer implements Strategy{
 
     }
 
-	private void sendHeartbeat(DatagramSocket serverSocket) {
+	private void sendHeartbeat() {
 		//Loop do HeartBeatSender
 		try {
 			//pode ser que mude depois
 			InetAddress gatewayAddress = InetAddress.getByName("127.0.0.1");
-			int gatewayPort = 9000;
 
 			while (true) {
 				System.out.println("Enviando heartbeat, tum tum");
-				String msg = "HEARTBEAT";
-				byte[] heartBeatMessage = msg.getBytes();
-				DatagramPacket heartBeatPacket = new DatagramPacket(heartBeatMessage, heartBeatMessage.length, gatewayAddress, gatewayPort);
+				// InetAddress address = serverSocket.getLocalAddress();
 
-				serverSocket.send(heartBeatPacket);
+				String msg = "127.0.0.1" + ":" + this.serverSocket.getLocalPort();
+				byte[] heartBeatMessage = msg.getBytes();
+				DatagramPacket heartBeatPacket = new DatagramPacket(heartBeatMessage, heartBeatMessage.length, gatewayAddress, this.gatewayPort);
+
+				this.serverSocket.send(heartBeatPacket);
 				//Intervalo para envio de heartbeat (a cada 1s)
-				Thread.sleep(1000);
+				Thread.sleep(this.heartBeatInterval);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
