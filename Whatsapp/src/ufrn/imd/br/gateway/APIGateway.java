@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 
 import ufrn.imd.br.gateway.strategy.GatewayContext;
 import ufrn.imd.br.model.ServiceRecord;
-import ufrn.imd.br.service.MessageService;
 
 public class APIGateway {
     private ConcurrentHashMap<String, ServiceRecord> messageServicesTable;
@@ -250,8 +249,8 @@ public class APIGateway {
                 System.out.println("Opção inválida!");
         }
 
-            new Thread(() -> gateway.UDPServer()).start();
-            // new Thread(() -> context.server()).start();
+            // new Thread(() -> gateway.UDPServer()).start();
+            new Thread(() -> context.server()).start();
             new Thread(() -> gateway.listen()).start();
             // new Thread(() -> context.listenHeartBeat()).start();
             new Thread(() -> gateway.failureDetector()).start();
