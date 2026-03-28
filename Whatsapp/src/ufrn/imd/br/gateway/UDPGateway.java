@@ -192,6 +192,31 @@ public class UDPGateway implements GatewayStrategy {
     public void failureDetector() {
         while(true) {
             logServicesStatus();
+
+            for (HashMap.Entry<String, ServiceRecord> entry : messageServicesTable.entrySet()) {
+                String key = entry.getKey();
+                ServiceRecord service = entry.getValue();
+
+                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                    service.setStatus(false);
+                }
+            }
+
+            for (HashMap.Entry<String, ServiceRecord> entry : userServicesTable.entrySet()) {
+                String key = entry.getKey();
+                ServiceRecord service = entry.getValue();
+
+                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                    service.setStatus(false);
+                }
+            }
+
+            try {
+                Thread.sleep(failureDetectorInterval);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
         }
     }
     
