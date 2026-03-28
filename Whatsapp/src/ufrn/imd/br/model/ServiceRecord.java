@@ -7,7 +7,6 @@ public class ServiceRecord {
    private int port;
    private volatile Boolean status;
    private volatile long lastHeartbeat;
-   private String type;
 
    public ServiceRecord(InetAddress address, int port) {
       this.address = address;

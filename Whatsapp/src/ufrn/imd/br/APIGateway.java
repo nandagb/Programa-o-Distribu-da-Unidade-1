@@ -7,8 +7,11 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import ufrn.imd.br.TCP.TCPServer;
 import ufrn.imd.br.UDP.server.UDPServer;
@@ -16,7 +19,10 @@ import ufrn.imd.br.model.Message;
 import ufrn.imd.br.model.ServiceRecord;
 
 public class APIGateway {
-    private ConcurrentHashMap<String, ServiceRecord> servicesTable;
+    private ConcurrentHashMap<String, ServiceRecord> messageServicesTable;
+    private ConcurrentHashMap<String, ServiceRecord> userServicesTable;
+    AtomicInteger messagesIndex = new AtomicInteger(0);
+    AtomicInteger usersIndex = new AtomicInteger(0);
     private int heartBeatTimeout = 3000;
     private int failureDetectorInterval = 1000;
     private DatagramSocket heartBeatSocket;
@@ -24,52 +30,67 @@ public class APIGateway {
     private int ServerGatewayPort = 9001;
 
     public APIGateway() throws Exception {
-        System.out.println("right before connecting heartbeat on gateway");
-
         heartBeatSocket = new DatagramSocket(heartBeatGatewayPort);
-        servicesTable = new ConcurrentHashMap<>();
+        messageServicesTable = new ConcurrentHashMap<>();
+        userServicesTable = new ConcurrentHashMap<>();
     }
 
     public String getServiceKey(InetAddress address, int port){
         return address.toString() + ":" + port;
     }
 
-    public void addServiceRecord(String key, ServiceRecord service) {
-        servicesTable.put(key, service);
-    }
-
     public void logServicesStatus() {
-        System.out.println("---Serviços registrados---");
-        for (HashMap.Entry<String, ServiceRecord> entry : servicesTable.entrySet()) {
+        System.out.println("---Serviços de Mensagens registrados---");
+        for (HashMap.Entry<String, ServiceRecord> entry : messageServicesTable.entrySet()) {
             String key = entry.getKey();
             ServiceRecord service = entry.getValue();
 
             System.out.println("Port: " + service.getPort() + ", Status: " + service.getStatus());
         }
-        System.out.println("--------------------------");
+        System.out.println("---------------------------------------");
+
+        System.out.println("---Serviços de Usuários registrados---");
+        for (HashMap.Entry<String, ServiceRecord> entry : userServicesTable.entrySet()) {
+            String key = entry.getKey();
+            ServiceRecord service = entry.getValue();
+
+            System.out.println("Port: " + service.getPort() + ", Status: " + service.getStatus());
+        }
+        System.out.println("---------------------------------------");
     }
 
     public void updateService(String key){
         StringTokenizer tokenizer = new StringTokenizer(key, ":");
-        ServiceRecord service = servicesTable.get(key);
+        ServiceRecord service;
 
-        if (service == null){
-            while (tokenizer.hasMoreElements()) {
-                try {
-                    addServiceRecord(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
-                } catch (NumberFormatException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                } catch (UnknownHostException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
+        while (tokenizer.hasMoreElements()) {
+            try {
+                String serviceType = tokenizer.nextToken();
+                switch(serviceType){
+                    case "users":
+                        service = userServicesTable.get(key);
+                        if (service == null){
+                            userServicesTable.put(key, service);
+                            return;
+                        }
+                        break;
+                    default:
+                        service = messageServicesTable.get(key);
+                        if (service == null){
+                            messageServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
+                            return;
+                        }
                 }
+
+                service.refreshHeartBeat();
+            } catch (NumberFormatException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (UnknownHostException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
             }
-
-            return;
         }
-
-        service.refreshHeartBeat();
     }
 
     public void listen() {
@@ -82,7 +103,7 @@ public class APIGateway {
 				//converte mensagem do servidor em bytes para texto
                                             // dados,              posição inicial, quantidade de bytes
                 String message = new String(serverPacket.getData(), 0,       serverPacket.getLength());
-                System.out.println("Gateway received this message from the heartbeat: " + message);
+                // System.out.println("Gateway received this message from the heartbeat: " + message);
 
                 updateService(message);
 
@@ -101,7 +122,16 @@ public class APIGateway {
         while(true) {
             logServicesStatus();
 
-            for (HashMap.Entry<String, ServiceRecord> entry : servicesTable.entrySet()) {
+            for (HashMap.Entry<String, ServiceRecord> entry : messageServicesTable.entrySet()) {
+                String key = entry.getKey();
+                ServiceRecord service = entry.getValue();
+
+                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                    service.setStatus(false);
+                }
+            }
+
+            for (HashMap.Entry<String, ServiceRecord> entry : userServicesTable.entrySet()) {
                 String key = entry.getKey();
                 ServiceRecord service = entry.getValue();
 
@@ -119,11 +149,24 @@ public class APIGateway {
         }
     }
 
+    public ServiceRecord getNextService(ConcurrentHashMap<String, ServiceRecord> table, AtomicInteger index) {
+        if (table.isEmpty()) return null;
+
+        List<ServiceRecord> services = table.values()
+        .stream()
+        .filter(ServiceRecord::getStatus)
+        .collect(Collectors.toList());
+
+        int i = index.getAndUpdate(v -> (v + 1) % services.size());
+
+        // old value of index
+        return services.get(i);
+    }
+
     public void UDPServer(){
         DatagramSocket socket;
 
 		try {
-            System.out.println("right before connecting udpserver on gateway");
             socket = new DatagramSocket(this.ServerGatewayPort);
 			while (true) {
                 //receives messages from client
@@ -154,8 +197,10 @@ public class APIGateway {
                 switch(service) {
                     case "messages":
                         //TODO: round robin pra decidir qual instancia do servidor vai ser usada
-                        System.out.println("Sending request to messages server 1");
-                        clientPacket.setPort(9004);
+                        ServiceRecord nextService = getNextService(messageServicesTable, messagesIndex);
+
+                        System.out.println("Sending request to messages server with port: " + nextService.getPort());
+                        clientPacket.setPort(nextService.getPort());
                         break;
                     default:
                         System.out.println("No service specified");
@@ -191,6 +236,7 @@ public class APIGateway {
             case "udp":
                 System.out.println("opção udp selecionada");
                 new Thread(() -> gateway.UDPServer()).start();
+                // chama o context sem passar serviço
                 // context.setStrategy(new UDPServer(port));
                 break;
             case "tcp":

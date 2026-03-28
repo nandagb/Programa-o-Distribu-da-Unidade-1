@@ -16,12 +16,14 @@ public class UDPServer implements Strategy{
 	private DatagramSocket serverSocket;
 	private int heartBeatInterval = 1000;
 	private int gatewayPort = 9000;
+	private Service service;
 
     public UDPServer(String port){
 		this.port = port;
     }
 
 	public void interfaceMethod(Service service){
+		this.service = service;
         System.out.println("This is the UDP Server Strategy!");
 
 		wppMessage = new Message();
@@ -47,7 +49,7 @@ public class UDPServer implements Strategy{
                 String message = new String(clientPacket.getData(), 0,       clientPacket.getLength());
                 System.out.println("Server received this message: " + message);
 				//call this inside the while loop of the server
-				service.processMessage(message);
+				this.service.processMessage(message);
 
 
 			}
@@ -69,10 +71,10 @@ public class UDPServer implements Strategy{
 			InetAddress gatewayAddress = InetAddress.getByName("127.0.0.1");
 
 			while (true) {
-				System.out.println("Enviando heartbeat, tum tum");
+				System.out.println("Enviando heartbeat, tum tum: " + gatewayAddress + ", " + this.gatewayPort);
 				// InetAddress address = serverSocket.getLocalAddress();
 
-				String msg = "127.0.0.1" + ":" + this.serverSocket.getLocalPort();
+				String msg = this.service.getType() + ":" + "127.0.0.1" + ":" + this.serverSocket.getLocalPort();
 				byte[] heartBeatMessage = msg.getBytes();
 				DatagramPacket heartBeatPacket = new DatagramPacket(heartBeatMessage, heartBeatMessage.length, gatewayAddress, this.gatewayPort);
 
