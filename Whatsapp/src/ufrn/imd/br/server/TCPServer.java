@@ -1,9 +1,9 @@
-package ufrn.imd.br.TCP;
+package ufrn.imd.br.server;
 
-import ufrn.imd.br.Strategy;
+import ufrn.imd.br.server.strategy.ServerStrategy;
 import ufrn.imd.br.service.Service;
 
-public class TCPServer implements Strategy {
+public class TCPServer implements ServerStrategy {
     public TCPServer(){
 
     }

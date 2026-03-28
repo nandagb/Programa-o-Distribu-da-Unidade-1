@@ -1,11 +1,11 @@
-package ufrn.imd.br.UDP.client;
-
-import ufrn.imd.br.Strategy;
+package ufrn.imd.br.client;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+
+import ufrn.imd.br.server.strategy.ServerStrategy;
 
 public class UDPClient {
     private int gatewayPort = 9001;

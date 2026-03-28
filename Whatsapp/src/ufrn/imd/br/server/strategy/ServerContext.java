@@ -1,11 +1,11 @@
-package ufrn.imd.br;
+package ufrn.imd.br.server.strategy;
 
 import ufrn.imd.br.service.Service;
 
-public class Context {
-    private Strategy strategy;
+public class ServerContext {
+    private ServerStrategy strategy;
 
-    public void setStrategy(Strategy strategy){
+    public void setStrategy(ServerStrategy strategy){
         this.strategy = strategy;
     }
 

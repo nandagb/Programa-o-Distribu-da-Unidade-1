@@ -1,4 +1,4 @@
-package ufrn.imd.br;
+package ufrn.imd.br.gateway;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -13,10 +13,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import ufrn.imd.br.TCP.TCPServer;
-import ufrn.imd.br.UDP.server.UDPServer;
-import ufrn.imd.br.model.Message;
+import ufrn.imd.br.gateway.strategy.GatewayContext;
 import ufrn.imd.br.model.ServiceRecord;
+import ufrn.imd.br.service.MessageService;
 
 public class APIGateway {
     private ConcurrentHashMap<String, ServiceRecord> messageServicesTable;
@@ -26,8 +25,8 @@ public class APIGateway {
     private int heartBeatTimeout = 3000;
     private int failureDetectorInterval = 1000;
     private DatagramSocket heartBeatSocket;
-    private int heartBeatGatewayPort = 9000;
-    private int ServerGatewayPort = 9001;
+    public int heartBeatGatewayPort = 9000;
+    public int ServerGatewayPort = 9001;
 
     public APIGateway() throws Exception {
         heartBeatSocket = new DatagramSocket(heartBeatGatewayPort);
@@ -229,15 +228,15 @@ public class APIGateway {
         String protocol = args[0];
 
         try {
+            GatewayContext context = new GatewayContext();
 
             APIGateway gateway = new APIGateway();
 
             switch(protocol) {
             case "udp":
                 System.out.println("opção udp selecionada");
-                new Thread(() -> gateway.UDPServer()).start();
                 // chama o context sem passar serviço
-                // context.setStrategy(new UDPServer(port));
+                context.setStrategy(new UDPGateway(gateway.ServerGatewayPort));
                 break;
             case "tcp":
                 System.out.println("opção tcp selecionada");
@@ -251,8 +250,12 @@ public class APIGateway {
                 System.out.println("Opção inválida!");
         }
 
+            new Thread(() -> gateway.UDPServer()).start();
+            // new Thread(() -> context.server()).start();
             new Thread(() -> gateway.listen()).start();
+            // new Thread(() -> context.listenHeartBeat()).start();
             new Thread(() -> gateway.failureDetector()).start();
+            // new Thread(() -> context.failureDetector()).start();
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

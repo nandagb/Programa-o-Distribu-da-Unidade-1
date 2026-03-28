@@ -1,13 +1,11 @@
-package ufrn.imd.br;
+package ufrn.imd.br.server;
 
-import ufrn.imd.br.Context;
+import ufrn.imd.br.server.strategy.ServerContext;
 import ufrn.imd.br.service.*;
-import ufrn.imd.br.UDP.server.UDPServer;
-import ufrn.imd.br.TCP.TCPServer;
 
 public class Application {
     public static void main(String args[]){
-        Context context = new Context();
+        ServerContext context = new ServerContext();
 
         if (args.length == 0) {
             System.out.println("Erro! Nenhum argumento fornecido");

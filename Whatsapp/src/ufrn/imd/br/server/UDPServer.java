@@ -1,4 +1,4 @@
-package ufrn.imd.br.UDP.server;
+package ufrn.imd.br.server;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -6,11 +6,11 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 
-import ufrn.imd.br.Strategy;
 import ufrn.imd.br.model.Message;
+import ufrn.imd.br.server.strategy.ServerStrategy;
 import ufrn.imd.br.service.Service;
 
-public class UDPServer implements Strategy{
+public class UDPServer implements ServerStrategy{
     private Message wppMessage;
 	private String port;
 	private DatagramSocket serverSocket;
@@ -21,6 +21,10 @@ public class UDPServer implements Strategy{
     public UDPServer(String port){
 		this.port = port;
     }
+
+	public void interfaceMethod() {
+
+	}
 
 	public void interfaceMethod(Service service){
 		this.service = service;
