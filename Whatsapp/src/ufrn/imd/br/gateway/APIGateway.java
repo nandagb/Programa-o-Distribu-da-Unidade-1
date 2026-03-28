@@ -24,7 +24,7 @@ public class APIGateway {
     private int heartBeatTimeout = 3000;
     private int failureDetectorInterval = 1000;
     private DatagramSocket heartBeatSocket;
-    public int heartBeatGatewayPort = 9000;
+    public int heartBeatGatewayPort = 9007;
     public int ServerGatewayPort = 9001;
 
     public APIGateway() throws Exception {
@@ -235,7 +235,7 @@ public class APIGateway {
             case "udp":
                 System.out.println("opção udp selecionada");
                 // chama o context sem passar serviço
-                context.setStrategy(new UDPGateway(gateway.ServerGatewayPort));
+                context.setStrategy(new UDPGateway());
                 break;
             case "tcp":
                 System.out.println("opção tcp selecionada");
@@ -251,10 +251,10 @@ public class APIGateway {
 
             // new Thread(() -> gateway.UDPServer()).start();
             new Thread(() -> context.server()).start();
-            new Thread(() -> gateway.listen()).start();
-            // new Thread(() -> context.listenHeartBeat()).start();
-            new Thread(() -> gateway.failureDetector()).start();
-            // new Thread(() -> context.failureDetector()).start();
+            // new Thread(() -> gateway.listen()).start();
+            new Thread(() -> context.listenHeartBeat()).start();
+            // new Thread(() -> gateway.failureDetector()).start();
+            new Thread(() -> context.failureDetector()).start();
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
