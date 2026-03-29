@@ -21,6 +21,27 @@ public class UDPServer implements ServerStrategy{
 		this.port = port;
     }
 
+	private DatagramPacket processRequest(DatagramPacket packet) {
+		//converte mensagem do cliente em bytes para texto
+                                            // dados,              posição inicial, quantidade de bytes
+        String message = new String(packet.getData(), 0,       packet.getLength());
+        System.out.println("Server received this message: " + message);
+
+		////
+		String[] tokens = message.split(";", 3);
+		String clientId = tokens[0] + ";" + tokens[1];
+		////
+		// apenas a parte importante da mensagem
+		this.service.processMessage(tokens[2]);
+
+		// responder cliente
+		String reply = clientId + ";" + "OK";
+		byte[] replymsg = reply.getBytes();
+
+		// String clientAddress = tokens[0].startsWith("/") ? tokens[0].substring(1) : tokens[0];
+		return new DatagramPacket(replymsg, replymsg.length, packet.getAddress(), packet.getPort());
+	}
+
 	public void interfaceMethod(Service service){
 		this.service = service;
 
@@ -42,24 +63,16 @@ public class UDPServer implements ServerStrategy{
 				DatagramPacket clientPacket = new DatagramPacket(clientMessage, clientMessage.length);
 				serverSocket.receive(clientPacket);
 
-				//converte mensagem do cliente em bytes para texto
-                                            // dados,              posição inicial, quantidade de bytes
-                String message = new String(clientPacket.getData(), 0,       clientPacket.getLength());
-                System.out.println("Server received this message: " + message);
+				DatagramPacket packetCopy = new DatagramPacket(
+                    clientPacket.getData().clone(),
+                    clientPacket.getLength(),
+                    clientPacket.getAddress(),
+                    clientPacket.getPort()
+                );
 
-				////
-				String[] tokens = message.split(";", 3);
-				String clientId = tokens[0] + ";" + tokens[1];
-				////
-
-				// apenas a parte importante da mensagem
-				this.service.processMessage(tokens[2]);
-
-				// responder cliente
-				String reply = clientId + ";" + "OK";
-				byte[] replymsg = reply.getBytes();
-				// String clientAddress = tokens[0].startsWith("/") ? tokens[0].substring(1) : tokens[0];
-				DatagramPacket serverPacket = new DatagramPacket(replymsg, replymsg.length, clientPacket.getAddress(), clientPacket.getPort());
+				///PROCESS
+				DatagramPacket serverPacket = processRequest(packetCopy);
+				///PROCESS
 				serverSocket.send(serverPacket);
 			}
 		} catch (IOException e) {
