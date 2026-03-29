@@ -5,6 +5,7 @@ import ufrn.imd.br.service.Service;
 public interface ServerStrategy {
     int heartBeatInterval = 1000;
 	int gatewayPort = 9000;
+    int THREAD_POOL_SIZE = 300;
     //declare method here
     public void interfaceMethod(Service service);
 }

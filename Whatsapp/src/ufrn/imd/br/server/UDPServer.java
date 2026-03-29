@@ -5,7 +5,8 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.util.StringTokenizer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import ufrn.imd.br.model.Message;
 import ufrn.imd.br.server.strategy.ServerStrategy;
@@ -16,6 +17,7 @@ public class UDPServer implements ServerStrategy{
 	private String port;
 	private DatagramSocket serverSocket;
 	private Service service;
+	private static final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
     public UDPServer(String port){
 		this.port = port;
@@ -70,10 +72,21 @@ public class UDPServer implements ServerStrategy{
                     clientPacket.getPort()
                 );
 
-				///PROCESS
-				DatagramPacket serverPacket = processRequest(packetCopy);
-				///PROCESS
-				serverSocket.send(serverPacket);
+				threadPool.execute(() -> {
+                    DatagramPacket serverPacket = processRequest(packetCopy);
+
+                    if (serverPacket == null) {
+                        System.out.println("Não foi possível processar o pacote!");
+                    }
+                    else {
+                        try {
+                            serverSocket.send(serverPacket);
+                        } catch (IOException e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                        }
+                    }
+                });
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -82,7 +95,9 @@ public class UDPServer implements ServerStrategy{
 
 		} catch (Exception e) {
 			System.out.println("Erro inesperado: " + e.getMessage());
-		}
+		} finally {
+            threadPool.shutdown();
+        }
 
     }
 

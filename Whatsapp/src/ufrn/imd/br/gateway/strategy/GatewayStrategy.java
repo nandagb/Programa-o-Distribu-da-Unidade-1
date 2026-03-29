@@ -1,10 +1,14 @@
 package ufrn.imd.br.gateway.strategy;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public interface GatewayStrategy {
     int heartBeatTimeout = 3000;
     int failureDetectorInterval = 1000;
     int heartBeatPort = 9000;
     int serverPort = 9001;
+    int THREAD_POOL_SIZE = 300;
 
     public void server();
     public void listenHeartBeat();

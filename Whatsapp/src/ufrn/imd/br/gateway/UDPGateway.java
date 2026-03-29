@@ -8,19 +8,19 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.StringTokenizer;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.concurrent.*;
 
 import ufrn.imd.br.gateway.strategy.GatewayStrategy;
 import ufrn.imd.br.model.ServiceRecord;
-import ufrn.imd.br.service.Service;
 
 public class UDPGateway implements GatewayStrategy {
     private ConcurrentHashMap<String, ServiceRecord> messageServicesTable;
     private ConcurrentHashMap<String, ServiceRecord> userServicesTable;
     AtomicInteger messagesIndex = new AtomicInteger(0);
     AtomicInteger usersIndex = new AtomicInteger(0);
+    private static final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
     public UDPGateway() throws Exception{
 
@@ -127,6 +127,7 @@ public class UDPGateway implements GatewayStrategy {
                     ServiceRecord nextService = getNextService(messageServicesTable, messagesIndex);
 
                     System.out.println("Sending request to messages server with port: " + nextService.getPort());
+
                     return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), nextService.getPort() );
                 default:
                     System.out.println("Message from the server! " + message);
@@ -165,20 +166,29 @@ public class UDPGateway implements GatewayStrategy {
                 );
 
 				// === chamar threads ===
-                DatagramPacket processedPacket = processRequest(packetCopy);
+                // ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+                threadPool.execute(() -> {
+                    DatagramPacket processedPacket = processRequest(packetCopy);
+
+                    if (processedPacket == null) {
+                        System.out.println("Não foi possível processar o pacote!");
+                    }
+                    else {
+                        try {
+                            socket.send(processedPacket);
+                        } catch (IOException e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                        }
+                    }
+                });
                 // ======================
-
-                if (processedPacket == null) {
-                    System.out.println("Não foi possível processar o pacote!");
-                }
-                else {
-                    socket.send(processedPacket);
-                }
-
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-		}
+		} finally {
+            threadPool.shutdown();
+        }
     }
 
     @Override
