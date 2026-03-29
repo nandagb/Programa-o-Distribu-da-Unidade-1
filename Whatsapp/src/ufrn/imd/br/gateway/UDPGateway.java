@@ -100,54 +100,83 @@ public class UDPGateway implements GatewayStrategy {
     @Override
     public void server() {
         DatagramSocket socket;
+        int clientPort;
+        InetAddress clientAddress;
 
 		try {
             socket = new DatagramSocket(serverPort);
 			while (true) {
-                //receives messages from client
+                // receives messages from client
 				byte[] clientMessage = new byte[1024];
 				DatagramPacket clientPacket = new DatagramPacket(clientMessage, clientMessage.length);
 				socket.receive(clientPacket);
 
-				//converte mensagem do cliente em bytes para texto
+				// converte mensagem do cliente em bytes para texto
                                             // dados,              posição inicial, quantidade de bytes
                 String message = new String(clientPacket.getData(), 0,       clientPacket.getLength());
-                //decodes message
-                System.out.println("UDP Gateway received this message from the client: " + message);
+                // decodes message
+                System.out.println("UDP Gateway received this message from the client of port: " + clientPacket.getPort() + ", " + message);
+                clientPort = clientPacket.getPort();
+                clientAddress = clientPacket.getAddress();
+
                 clientPacket.setAddress(InetAddress.getByName("localhost"));
 
                 StringTokenizer tokenizer = new StringTokenizer(message, ";");
-                String service = null;
-                int messageSender = 0;
-                int messageReceiver = 0;
-                String messageContent = null;
+                String option = null;
 
-                while (tokenizer.hasMoreElements()) {
-                    service = tokenizer.nextToken();
-                    messageSender = Integer.parseInt(tokenizer.nextToken());
-                    messageReceiver = Integer.parseInt(tokenizer.nextToken());
-                    messageContent = tokenizer.nextToken();
-                }
-				
-                switch(service) {
+                //mudar para split
+                String[] tokens = message.split(";", 2);
+                option = tokens[0];
+
+                option = tokenizer.nextToken();
+                switch(option) {
                     case "messages":
                         if (messageServicesTable.isEmpty()) {
                             System.out.println("No available server!");
                             continue;
                         }
+                        System.out.println("TOKENS 1: " + tokens[1]);
 
+                        String newClientMsg = clientAddress + ";" + clientPort + ";" + tokens[1];
                         ServiceRecord nextService = getNextService(messageServicesTable, messagesIndex);
 
                         System.out.println("Sending request to messages server with port: " + nextService.getPort());
                         clientPacket.setPort(nextService.getPort());
+                        clientPacket.setData(newClientMsg.getBytes());
+                        clientPacket.setLength(newClientMsg.getBytes().length);
+
                         break;
                     default:
-                        System.out.println("No service specified");
-                }
-                System.out.println("after switch");
+                        System.out.println("Message from the server! " + message);
+                        String newServerMsg = tokens[1].split(";", 2)[1];
+                        String clientIP = option.startsWith("/") ? option.substring(1) : option;
 
-                //sends message to correct server
+                        clientPacket.setAddress(InetAddress.getByName(clientIP));
+                        clientPacket.setPort(Integer.parseInt(tokens[1].split(";", 2)[0]));
+                        clientPacket.setData(newServerMsg.getBytes());
+                        clientPacket.setLength(newServerMsg.getBytes().length);
+
+                        System.out.println("Gateway enviando resposta do servidor para a porta: " + clientPacket.getPort());
+                }
+
+                // Envia mensagem para o servidor/cliente correto
+                System.out.println("Gateway enviando resposta do servidor para a porta: " + clientPacket.getPort());
                 socket.send(clientPacket);
+
+
+                // Receber resposta do servidor
+                // System.out.println("Gateway esperando resposta do servidor...");
+                // byte[] serverMessage = new byte[1024];
+                // DatagramPacket serverPacket = new DatagramPacket(serverMessage, serverMessage.length);
+                // socket.receive(serverPacket);
+                // message = new String(serverPacket.getData());
+                // System.out.println("Resposta do servidor: " + message);
+
+                // // Enviar resposta do servidor para o cliente
+                // clientPacket.setAddress(clientAddress);
+                // clientPacket.setPort(clientPort);
+                // System.out.println("Gateway enviando resposta do servidor para a porta: " + clientPacket.getPort());
+				// socket.send(serverPacket);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
