@@ -14,14 +14,14 @@ public class Application {
 
         String protocol = args[0];
         int instance = Integer.parseInt(args[2]);
-        String port;
+        int port;
 
         switch(instance) {
             case 2:
-                port = "9005";
+                port = 9005;
                 break;
             default:
-                port = "9004";
+                port = 9004;
         }
 
         switch(protocol) {
@@ -31,7 +31,7 @@ public class Application {
                 break;
             case "tcp":
                 System.out.println("opção tcp selecionada");
-                context.setStrategy(new TCPServer());
+                context.setStrategy(new TCPServer(port));
                 break;
             // case "http":
             //     break;

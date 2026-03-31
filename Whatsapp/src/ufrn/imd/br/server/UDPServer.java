@@ -14,12 +14,12 @@ import ufrn.imd.br.service.Service;
 
 public class UDPServer implements ServerStrategy{
     private Message wppMessage;
-	private String port;
+	private int port;
 	private DatagramSocket serverSocket;
 	private Service service;
 	ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
-    public UDPServer(String port){
+    public UDPServer(int port){
 		this.port = port;
     }
 
@@ -51,7 +51,7 @@ public class UDPServer implements ServerStrategy{
         System.out.println("UDP Server Messenger started");
 
 		try {
-			serverSocket = new DatagramSocket(Integer.parseInt(this.port));
+			serverSocket = new DatagramSocket(this.port);
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -128,6 +128,6 @@ public class UDPServer implements ServerStrategy{
 	}
 
     public static void main(String[] args) {
-		new UDPServer("9004");
+		// new UDPServer(9004);
 	}
 }

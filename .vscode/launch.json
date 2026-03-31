@@ -40,10 +40,17 @@
         },
         {
             "type": "java",
-            "name": "Run TCP Messages",
+            "name": "Run TCP Messages 1",
             "request": "launch",
             "mainClass": "ufrn.imd.br.server.Application",
-            "args": ["tcp", "messages"]
+            "args": ["tcp", "messages", "1"]
+        },
+        {
+            "type": "java",
+            "name": "Run TCP Messages 2",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.server.Application",
+            "args": ["tcp", "messages", "2"]
         },
         {
             "type": "java",
