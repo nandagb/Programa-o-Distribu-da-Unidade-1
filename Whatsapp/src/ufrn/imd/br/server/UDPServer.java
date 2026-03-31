@@ -17,7 +17,7 @@ public class UDPServer implements ServerStrategy{
 	private String port;
 	private DatagramSocket serverSocket;
 	private Service service;
-	private static final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+	ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     public UDPServer(String port){
 		this.port = port;
@@ -72,7 +72,7 @@ public class UDPServer implements ServerStrategy{
                     clientPacket.getPort()
                 );
 
-				threadPool.execute(() -> {
+				executor.execute(() -> {
                     DatagramPacket serverPacket = processRequest(packetCopy);
 
                     if (serverPacket == null) {
@@ -95,9 +95,7 @@ public class UDPServer implements ServerStrategy{
 
 		} catch (Exception e) {
 			System.out.println("Erro inesperado: " + e.getMessage());
-		} finally {
-            threadPool.shutdown();
-        }
+		}
 
     }
 

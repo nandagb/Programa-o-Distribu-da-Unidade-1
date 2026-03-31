@@ -20,7 +20,7 @@ public class UDPGateway implements GatewayStrategy {
     private ConcurrentHashMap<String, ServiceRecord> userServicesTable;
     AtomicInteger messagesIndex = new AtomicInteger(0);
     AtomicInteger usersIndex = new AtomicInteger(0);
-    private static final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+    ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     public UDPGateway() throws Exception{
 
@@ -166,8 +166,7 @@ public class UDPGateway implements GatewayStrategy {
                 );
 
 				// === chamar threads ===
-                // ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-                threadPool.execute(() -> {
+                executor.execute(() -> {
                     DatagramPacket processedPacket = processRequest(packetCopy);
 
                     if (processedPacket == null) {
@@ -186,9 +185,7 @@ public class UDPGateway implements GatewayStrategy {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-		} finally {
-            threadPool.shutdown();
-        }
+		}
     }
 
     @Override

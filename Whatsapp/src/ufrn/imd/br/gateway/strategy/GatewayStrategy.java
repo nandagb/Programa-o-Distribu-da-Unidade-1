@@ -8,7 +8,6 @@ public interface GatewayStrategy {
     int failureDetectorInterval = 1000;
     int heartBeatPort = 9000;
     int serverPort = 9001;
-    int THREAD_POOL_SIZE = 300;
 
     public void server();
     public void listenHeartBeat();
