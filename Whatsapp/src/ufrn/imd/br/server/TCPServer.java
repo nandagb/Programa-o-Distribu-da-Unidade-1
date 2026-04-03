@@ -10,6 +10,7 @@ import java.util.StringTokenizer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import ufrn.imd.br.http.HTTPRequest;
 import ufrn.imd.br.server.strategy.ServerStrategy;
 import ufrn.imd.br.service.Service;
 
@@ -21,27 +22,58 @@ public class TCPServer implements ServerStrategy {
         this.port = port;
     }
 
+    private HTTPRequest getHTTPRequest(BufferedReader clientRequest) {
+        StringBuilder headersBuilder = new StringBuilder();
+        String firstHeader;
+
+        try {
+            firstHeader = clientRequest.readLine();
+            HTTPRequest request = new HTTPRequest(firstHeader);
+
+            headersBuilder.append(firstHeader).append("\r\n");
+
+            String line;
+            while ((line = clientRequest.readLine()) != null && !line.isEmpty()) {
+                headersBuilder.append(line).append("\r\n");
+                if (line.startsWith("Content-Length:")) {
+                    request.setLength(line);
+                }
+            }
+            request.setHeaders(headersBuilder.toString());
+            if (request.getContentLength() > 0) {
+                char[] body = new char[request.getContentLength()];
+                clientRequest.read(body, 0, request.getContentLength());
+                request.setBody(body);
+            }
+
+            return request;
+
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     private void processRequest(Socket connection) {
         System.out.println("Conection accepted!");
 
-        BufferedReader clientMessage;
+        BufferedReader clientRequest;
         try {
-            clientMessage = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            PrintWriter serverMessage = new PrintWriter(connection.getOutputStream(), true);
-            String headerLine = clientMessage.readLine();
+            clientRequest = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            HTTPRequest request = getHTTPRequest(clientRequest);
 
-            System.out.println("Message received: " + headerLine);
+            if (request == null) {
+                System.out.println("Não foi possível processar a requisição!");
+                //retornar erro sla
+            }
+            else {
+                System.out.println("REQUEST METHOD: " + request.getMethod());
+                System.out.println("REQUEST PATH: " + request.getPath());
+                System.out.println("REQUEST QUERY: " + request.getQueryString());
+            }
 
-            StringTokenizer tokenizer = new StringTokenizer(headerLine);
-            String httpMethod = tokenizer.nextToken();
-
-            System.out.println("HTTP METHOD: " + httpMethod);
-
-            String contentLenght = clientMessage.readLine();
-            System.out.println("SOMETHING: " + contentLenght);
-
-            String something = clientMessage.readLine();
-            System.out.println("SOMETHING: " + something);
+            PrintWriter serverResponse = new PrintWriter(connection.getOutputStream(), true);
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();

@@ -45,6 +45,18 @@ public class HTTPRequest {
         }
     }
 
+    public String getMethod() {
+        return this.method;
+    }
+
+    public String getPath() {
+        return this.path;
+    }
+
+    public String getQueryString() {
+        return this.queryString;
+    }
+
     public void setLength(String line) {
         this.contentLength = Integer.parseInt(line.split(":")[1].trim());
     }

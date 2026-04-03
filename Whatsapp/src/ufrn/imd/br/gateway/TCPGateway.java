@@ -66,7 +66,6 @@ public class TCPGateway implements GatewayStrategy{
         BufferedReader clientRequest;
         try {
             clientRequest = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-
             HTTPRequest request = getHTTPRequest(clientRequest);
 
             if (request == null) {
