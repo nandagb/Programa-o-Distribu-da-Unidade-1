@@ -13,7 +13,6 @@ import ufrn.imd.br.server.strategy.ServerStrategy;
 import ufrn.imd.br.service.Service;
 
 public class UDPServer implements ServerStrategy{
-    private Message wppMessage;
 	private int port;
 	private DatagramSocket serverSocket;
 	private Service service;

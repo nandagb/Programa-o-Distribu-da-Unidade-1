@@ -6,10 +6,17 @@
     "configurations": [
         {
             "type": "java",
-            "name": "Run Gateway",
+            "name": "Run UDP Gateway",
             "request": "launch",
             "mainClass": "ufrn.imd.br.gateway.APIGateway",
             "args": ["udp"]
+        },
+        {
+            "type": "java",
+            "name": "Run TCP Gateway",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.gateway.APIGateway",
+            "args": ["tcp"]
         },
         {
             "type": "java",

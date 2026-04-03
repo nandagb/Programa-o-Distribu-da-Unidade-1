@@ -21,7 +21,7 @@ public class TCPServer implements ServerStrategy {
         this.port = port;
     }
 
-    public void processRequest(Socket connection) {
+    private void processRequest(Socket connection) {
         System.out.println("Conection accepted!");
 
         BufferedReader clientMessage;
@@ -36,6 +36,12 @@ public class TCPServer implements ServerStrategy {
             String httpMethod = tokenizer.nextToken();
 
             System.out.println("HTTP METHOD: " + httpMethod);
+
+            String contentLenght = clientMessage.readLine();
+            System.out.println("SOMETHING: " + contentLenght);
+
+            String something = clientMessage.readLine();
+            System.out.println("SOMETHING: " + something);
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -50,7 +56,7 @@ public class TCPServer implements ServerStrategy {
             ServerSocket serverSocket = new ServerSocket(this.port, 1000);
 
             while(true) {
-                System.out.println("waiting for conection on port " + this.port + "...");
+                System.out.println("TCP Server waiting for conection on port " + this.port + "...");
                 Socket connection = serverSocket.accept();
 
                 executor.execute(() -> processRequest(connection));

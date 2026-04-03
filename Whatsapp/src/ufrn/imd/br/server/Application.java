@@ -13,15 +13,26 @@ public class Application {
         }
 
         String protocol = args[0];
+        String service = args[1];
         int instance = Integer.parseInt(args[2]);
         int port;
 
-        switch(instance) {
-            case 2:
-                port = 9005;
-                break;
-            default:
+        if (service.equals("messages")) {
+            if (instance == 1) {
                 port = 9004;
+            }
+            else {
+                port = 9004;
+            }
+        }
+        else {
+            if (instance == 1) {
+                port = 9006;
+            }
+            else {
+                port = 9007;
+            }
+
         }
 
         switch(protocol) {
@@ -42,7 +53,6 @@ public class Application {
         }
         System.out.println("DEPOIS DO SWITCH DO SERVER");
 
-        String service = args[1];
         System.out.println("SERVICE OPTION: " + service);
         // Service service;
 

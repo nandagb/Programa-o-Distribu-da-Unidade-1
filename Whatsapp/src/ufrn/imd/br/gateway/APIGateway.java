@@ -44,7 +44,7 @@ public class APIGateway {
         try {
             GatewayContext context = new GatewayContext();
 
-            APIGateway gateway = new APIGateway();
+            // APIGateway gateway = new APIGateway();
 
             switch(protocol) {
             case "udp":
@@ -54,7 +54,7 @@ public class APIGateway {
                 break;
             case "tcp":
                 System.out.println("opção tcp selecionada");
-                // context.setStrategy(new TCPServer());
+                context.setStrategy(new TCPGateway());
                 break;
             // case "http":
             //     break;
