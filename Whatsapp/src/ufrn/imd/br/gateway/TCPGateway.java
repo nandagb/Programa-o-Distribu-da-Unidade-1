@@ -6,13 +6,13 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import ufrn.imd.br.gateway.strategy.GatewayStrategy;
+import ufrn.imd.br.http.HTTPRequest;
 import ufrn.imd.br.model.ServiceRecord;
 
 public class TCPGateway implements GatewayStrategy{
@@ -27,16 +27,36 @@ public class TCPGateway implements GatewayStrategy{
         userServicesTable = new ConcurrentHashMap<>();
     }
 
-    private void processHTTPRequest(BufferedReader request) {
-        String headerLine;
+    private HTTPRequest getHTTPRequest(BufferedReader clientRequest) {
+        StringBuilder headersBuilder = new StringBuilder();
+        String firstHeader;
+
         try {
-            headerLine = request.readLine();
-            StringTokenizer tokenizer = new StringTokenizer(headerLine);
-            String httpMethod = tokenizer.nextToken();
-            String httpPath = tokenizer.nextToken();
+            firstHeader = clientRequest.readLine();
+            HTTPRequest request = new HTTPRequest(firstHeader);
+
+            headersBuilder.append(firstHeader).append("\r\n");
+
+            String line;
+            while ((line = clientRequest.readLine()) != null && !line.isEmpty()) {
+                headersBuilder.append(line).append("\r\n");
+                if (line.startsWith("Content-Length:")) {
+                    request.setLength(line);
+                }
+            }
+            request.setHeaders(headersBuilder.toString());
+            if (request.getContentLength() > 0) {
+                char[] body = new char[request.getContentLength()];
+                clientRequest.read(body, 0, request.getContentLength());
+                request.setBody(body);
+            }
+
+            return request;
+
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
+            return null;
         }
     }
 
@@ -46,59 +66,25 @@ public class TCPGateway implements GatewayStrategy{
         BufferedReader clientRequest;
         try {
             clientRequest = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            PrintWriter gatewayResponse = new PrintWriter(connection.getOutputStream(), true);
-            String headerLine = clientRequest.readLine();
 
-            System.out.println("Message received: " + headerLine);
+            HTTPRequest request = getHTTPRequest(clientRequest);
 
-            StringTokenizer tokenizer = new StringTokenizer(headerLine);
-            String httpMethod = tokenizer.nextToken();
-
-            String httpPath = tokenizer.nextToken();
-
-            System.out.println("HTTP METHOD: " + httpMethod);
-            System.out.println("HTTP PATH: " + httpPath);
-
-            switch( httpPath) {
-                case "/messages":
-                    //rotear para porta 9004 (enquanto não tem heartbeat)
-                    // System.out.println("Creating connection with messages server 1");
-                    // Socket serviceSocket = new Socket("localhost", 9004);
-
-                    // BufferedReader serverResponse = new BufferedReader(new InputStreamReader(serviceSocket.getInputStream()));
-                    // System.out.println("2");
-                    // PrintWriter gatewayRequest = new PrintWriter(serviceSocket.getOutputStream(), true);
-
-                    //// Read HTTP Headers
-                    // int contentLength = 0;
-                    // String line;
-                    // System.out.println("3");
-
-                    // while (!(line = clientRequest.readLine()).isEmpty()) {
-                    //     System.out.println("4");
-                    //     gatewayRequest.println(line);
-
-                    //     if (line.startsWith("Content-Length:")) {
-                    //         contentLength = Integer.parseInt(line.split(":")[1].trim());
-                    //     }
-                    // }
-                    // gatewayRequest.println();
-                    //// Read HTTP Headers
-                    
-                    /// Read HTTP Body
-                    // char[] body = new char[contentLength];
-                    // clientRequest.read(body, 0, contentLength);
-
-                    // gatewayRequest.print(body);
-                    // gatewayRequest.flush();
-                    // /// 
+            if (request == null) {
+                System.out.println("Não foi possível processar a requisição!");
+                //retornar erro sla
+            }
+            else {
+                //roteia apenas para 9004 (messages 1) por enquanto
+                Socket serviceSocket = new Socket("localhost", 9004);
+                PrintWriter gatewayRequest = new PrintWriter(serviceSocket.getOutputStream());
+                BufferedReader serverResponse = new BufferedReader(new InputStreamReader(serviceSocket.getInputStream()));
 
 
-                    // System.out.println("Calling messages server");
-                    // break;
-                // case "users";
-                // default:
-
+                gatewayRequest.println(request.getHeaders());
+                if (request.getContentLength() > 0 ) {
+                    gatewayRequest.print(request.getBody());
+                }
+                gatewayRequest.flush();
             }
         } catch (IOException e) {
             // TODO Auto-generated catch block
