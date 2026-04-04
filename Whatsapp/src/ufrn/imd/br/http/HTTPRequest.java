@@ -14,8 +14,12 @@ public class HTTPRequest {
     private String headers;
     private String body;
 
+    public HTTPRequest() {
+        this.contentLength = 0;
+    }
+
     public HTTPRequest(String firstHeader) {
-        contentLength = 0;
+        this.contentLength = 0;
         StringTokenizer tokenizer = new StringTokenizer(firstHeader);
         this.method = tokenizer.nextToken();
 
@@ -57,8 +61,12 @@ public class HTTPRequest {
         return this.queryString;
     }
 
-    public void setLength(String line) {
+    public void setContentLength(String line) {
         this.contentLength = Integer.parseInt(line.split(":")[1].trim());
+    }
+
+    public void setContentLength(int length) {
+        this.contentLength = length;
     }
 
     public int getContentLength() {

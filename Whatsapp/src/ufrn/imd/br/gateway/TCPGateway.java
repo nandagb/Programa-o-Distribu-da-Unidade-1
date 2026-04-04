@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import ufrn.imd.br.gateway.strategy.GatewayStrategy;
 import ufrn.imd.br.http.HTTPRequest;
+import ufrn.imd.br.http.HTTPResponse;
 import ufrn.imd.br.model.ServiceRecord;
 
 public class TCPGateway implements GatewayStrategy{
@@ -41,7 +42,7 @@ public class TCPGateway implements GatewayStrategy{
             while ((line = clientRequest.readLine()) != null && !line.isEmpty()) {
                 headersBuilder.append(line).append("\r\n");
                 if (line.startsWith("Content-Length:")) {
-                    request.setLength(line);
+                    request.setContentLength(line);
                 }
             }
             request.setHeaders(headersBuilder.toString());
@@ -52,6 +53,39 @@ public class TCPGateway implements GatewayStrategy{
             }
 
             return request;
+
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private HTTPResponse getHTTPResponse(BufferedReader serverResponse) {
+        StringBuilder headersBuilder = new StringBuilder();
+        String firstHeader;
+
+        try {
+            firstHeader = serverResponse.readLine();
+            HTTPResponse response = new HTTPResponse(firstHeader);
+
+            headersBuilder.append(firstHeader).append("\r\n");
+
+            String line;
+            while ((line = serverResponse.readLine()) != null && !line.isEmpty()) {
+                headersBuilder.append(line).append("\r\n");
+                if (line.startsWith("Content-Length:")) {
+                    response.setContentLength(line);
+                }
+            }
+            response.setHeaders(headersBuilder.toString());
+            if (response.getContentLength() > 0) {
+                char[] body = new char[response.getContentLength()];
+                serverResponse.read(body, 0, response.getContentLength());
+                response.setBody(body);
+            }
+
+            return response;
 
         } catch (IOException e) {
             // TODO Auto-generated catch block
@@ -76,14 +110,38 @@ public class TCPGateway implements GatewayStrategy{
                 //roteia apenas para 9004 (messages 1) por enquanto
                 Socket serviceSocket = new Socket("localhost", 9004);
                 PrintWriter gatewayRequest = new PrintWriter(serviceSocket.getOutputStream());
-                BufferedReader serverResponse = new BufferedReader(new InputStreamReader(serviceSocket.getInputStream()));
 
-
+                System.out.println("Client Request");
+                System.out.println("REQUEST HEADERS: " + request.getHeaders());
                 gatewayRequest.println(request.getHeaders());
                 if (request.getContentLength() > 0 ) {
+                    System.out.println("REQUEST BODY: " + request.getBody());
                     gatewayRequest.print(request.getBody());
                 }
+
                 gatewayRequest.flush();
+
+                BufferedReader serverResponse = new BufferedReader(new InputStreamReader(serviceSocket.getInputStream()));
+                PrintWriter gatewayResponse = new PrintWriter(connection.getOutputStream());
+
+                HTTPResponse response = getHTTPResponse(serverResponse);
+
+                if (response == null) {
+                    System.out.println("Não foi possível processar a resposta!");
+                    //retornar erro sla
+                }
+                else {
+                    System.out.println("Server response");
+                    System.out.println("RESPONSE HEADERS: " + response.getHeaders());
+                    gatewayResponse.println(response.getHeaders());
+
+                    if (response.getContentLength() > 0 ) {
+                        System.out.println("RESPONSE BODY: " + response.getBody());
+                        gatewayResponse.print(response.getBody());
+                    }
+
+                    gatewayResponse.flush();
+                }
             }
         } catch (IOException e) {
             // TODO Auto-generated catch block

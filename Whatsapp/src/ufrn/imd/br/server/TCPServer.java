@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import ufrn.imd.br.http.HTTPRequest;
+import ufrn.imd.br.http.HTTPResponse;
 import ufrn.imd.br.server.strategy.ServerStrategy;
 import ufrn.imd.br.service.Service;
 
@@ -36,7 +37,7 @@ public class TCPServer implements ServerStrategy {
             while ((line = clientRequest.readLine()) != null && !line.isEmpty()) {
                 headersBuilder.append(line).append("\r\n");
                 if (line.startsWith("Content-Length:")) {
-                    request.setLength(line);
+                    request.setContentLength(line);
                 }
             }
             request.setHeaders(headersBuilder.toString());
@@ -53,6 +54,29 @@ public class TCPServer implements ServerStrategy {
             e.printStackTrace();
             return null;
         }
+    }
+
+    private HTTPResponse assembleHTTPResponse() {
+        String protocol = "HTTP/1.1";
+        int code = 200;
+        String status = "OK";
+        String contentType = "application/json";
+        String body = "{\"status\":\"ok\"}";
+        int contentLength = body.length();
+
+        StringBuilder headersBuilder = new StringBuilder();
+        headersBuilder.append(protocol + " " + code + " " + status).append("\r\n");
+
+        HTTPResponse response = new HTTPResponse("HTTP/1.1", 200, "OK");
+
+        headersBuilder.append("Content-Type: " + contentType).append("\r\n");
+        headersBuilder.append("Content-Length: " + contentLength).append("\r\n");
+
+        response.setHeaders(headersBuilder.toString());
+        response.setContentLength(contentLength);
+        response.setBody(body);
+
+        return response;
     }
 
     private void processRequest(Socket connection) {
@@ -73,7 +97,21 @@ public class TCPServer implements ServerStrategy {
                 System.out.println("REQUEST QUERY: " + request.getQueryString());
             }
 
-            PrintWriter serverResponse = new PrintWriter(connection.getOutputStream(), true);
+            HTTPResponse response = assembleHTTPResponse();
+
+            if (response == null) {
+                System.out.println("Não foi possível processar a resposta!");
+                //retornar erro sla
+            }
+            else {
+                PrintWriter serverResponse = new PrintWriter(connection.getOutputStream());
+
+                serverResponse.println(response.getHeaders());
+                if (response.getContentLength() > 0 ) {
+                    serverResponse.print(response.getBody());
+                }
+                serverResponse.flush();
+            }
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
