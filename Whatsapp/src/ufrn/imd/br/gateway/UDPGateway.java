@@ -228,14 +228,11 @@ public class UDPGateway implements GatewayStrategy {
 
                             String newClientMsg = request.toString();
 
-                            // ServiceRecord nextService = getNextService(messageServicesTable, messagesIndex);
+                            ServiceRecord nextService = getNextService(messageServicesTable, messagesIndex);
 
-                            // System.out.println("Sending request to messages server with port: " + nextService.getPort());
+                            System.out.println("Sending request to messages server with port: " + nextService.getPort());
 
-                            // return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), nextService.getPort() );
-
-                            // Enviando apenas para porta 9004 por enquanto
-                            return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), 9004 );
+                            return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), nextService.getPort() );
                     }
                 }
 

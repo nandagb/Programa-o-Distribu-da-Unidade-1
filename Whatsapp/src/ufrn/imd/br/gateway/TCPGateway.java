@@ -9,11 +9,13 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import ufrn.imd.br.gateway.strategy.GatewayStrategy;
 import ufrn.imd.br.http.HTTPRequest;
@@ -30,6 +32,20 @@ public class TCPGateway implements GatewayStrategy{
     public TCPGateway() {
         messageServicesTable = new ConcurrentHashMap<>();
         userServicesTable = new ConcurrentHashMap<>();
+    }
+
+    private ServiceRecord getNextService(ConcurrentHashMap<String, ServiceRecord> table, AtomicInteger index) {
+        List<ServiceRecord> services = table.values()
+        .stream()
+        .filter(ServiceRecord::getStatus)
+        .collect(Collectors.toList());
+
+        if (services.isEmpty()) return null;
+
+        int i = index.getAndUpdate(v -> (v + 1) % services.size());
+
+        // old value of index
+        return services.get(i);
     }
 
     private void updateService(String key){
@@ -164,7 +180,11 @@ public class TCPGateway implements GatewayStrategy{
             }
             else {
                 //roteia apenas para 9004 (messages 1) por enquanto
-                Socket serviceSocket = new Socket("localhost", 9004);
+                ServiceRecord nextService = getNextService(messageServicesTable, messagesIndex);
+
+                System.out.println("Sending request to messages server with port: " + nextService.getPort());
+
+                Socket serviceSocket = new Socket("localhost", nextService.getPort());
                 PrintWriter gatewayRequest = new PrintWriter(serviceSocket.getOutputStream());
 
                 System.out.println("Client Request");

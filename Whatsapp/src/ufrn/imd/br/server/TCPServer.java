@@ -94,9 +94,9 @@ public class TCPServer implements ServerStrategy {
                 //retornar erro sla
             }
             else {
-                System.out.println("REQUEST METHOD: " + request.getMethod());
-                System.out.println("REQUEST PATH: " + request.getPath());
-                System.out.println("REQUEST QUERY: " + request.getQueryString());
+                // System.out.println("REQUEST METHOD: " + request.getMethod());
+                // System.out.println("REQUEST PATH: " + request.getPath());
+                // System.out.println("REQUEST QUERY: " + request.getQueryString());
                 // call process message here
             }
 

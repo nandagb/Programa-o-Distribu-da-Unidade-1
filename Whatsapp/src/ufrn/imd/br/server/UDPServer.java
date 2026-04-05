@@ -108,53 +108,33 @@ public class UDPServer implements ServerStrategy{
         String message = new String(packet.getData(), 0,       packet.getLength());
 		BufferedReader messageReader = new BufferedReader(new StringReader(message));
 
-		System.out.println("Server received this message: " + message);
+		System.out.println("Servidor recebeu essa mensagem: " + message);
 
 		HTTPRequest request = getHTTPRequest(messageReader);
 
 		if (request == null) {
             System.out.println("Não foi possível processar a requisição!");
             //retornar erro sla
+			return null;
         }
 		else {
-			// this.service.processMessage(tokens[2]);
-
-			System.out.println("CLIENT IP RECEIVED FROM GATEWAY IN UDP SERVER: " + request.getHeader("X-Client-IP"));
-			System.out.println("CLIENT PORT RECEIVED FROM GATEWAY IN UDP SERVER: " + request.getHeader("X-Client-Port"));
-			System.out.println("CLIENT HEADERS: " + request.getHeaders());
-
 			HTTPResponse response = assembleHTTPResponse();
 
             if (response == null) {
                 System.out.println("Não foi possível processar a resposta!");
                 //retornar erro sla
+				return null;
             }
 			else {
 				response.setHeader("X-Client-IP" + ": " + request.getHeader("X-Client-IP"));
 				response.setHeader("X-Client-Port" + ": " + request.getHeader("X-Client-Port"));
 
 				String reply = response.toString();
-				System.out.println("REPLY MESSAGE FOR GATEWAY: " + reply);
 				byte[] replymsg = reply.getBytes();
 
 				return new DatagramPacket(replymsg, replymsg.length, packet.getAddress(), packet.getPort());
 			}
 		}
-
-		////
-		String[] tokens = message.split(";", 3);
-		String clientId = tokens[0] + ";" + tokens[1];
-		////
-		// apenas a parte importante da mensagem
-		// this.service.processMessage(tokens[2]);
-		processMessage(tokens[2]);
-
-		// responder cliente
-		String reply = clientId + ";" + "OK";
-		byte[] replymsg = reply.getBytes();
-
-		// String clientAddress = tokens[0].startsWith("/") ? tokens[0].substring(1) : tokens[0];
-		return new DatagramPacket(replymsg, replymsg.length, packet.getAddress(), packet.getPort());
 	}
 
 	public void interfaceMethod(Service service){
