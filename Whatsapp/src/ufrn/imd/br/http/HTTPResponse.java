@@ -127,4 +127,18 @@ public class HTTPResponse {
         return this.body;
     }
 
+    public String toString() {
+        StringBuilder messageBuilder = new StringBuilder();
+
+        messageBuilder.append(this.statusLine).append("\r\n");
+        messageBuilder.append(this.getHeaders()).append("\r\n");
+        messageBuilder.append("\r\n");
+
+        if (this.contentLength > 0 ) {
+            messageBuilder.append(this.body).append("\r\n");
+        }
+
+        String request = messageBuilder.toString();
+        return request;
+    }
 }

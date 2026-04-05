@@ -185,18 +185,8 @@ public class UDPGateway implements GatewayStrategy {
             if (message.startsWith("HTTP/")) {
                 System.out.println("Resposta do Servidor" + message);
 
-                StringBuilder messageBuilder = new StringBuilder();
                 HTTPResponse response = getHTTPResponse(messageReader);
-
-                messageBuilder.append(response.getStatusLine()).append("\r\n");
-                messageBuilder.append(response.getHeaders()).append("\r\n");
-                messageBuilder.append("\r\n");
-
-                if (response.getContentLength() > 0 ) {
-                    messageBuilder.append(response.getBody()).append("\r\n");
-                }
-
-                String newServerResponse = messageBuilder.toString();
+                String newServerResponse = response.toString();
                 String ip = response.getHeader("X-Client-IP");
 
                 if (ip.startsWith("/")) {
@@ -230,17 +220,7 @@ public class UDPGateway implements GatewayStrategy {
                             //     return null;
                             // }
 
-                            StringBuilder messageBuilder = new StringBuilder();
-
-                            messageBuilder.append(request.getRequestLine()).append("\r\n");
-                            messageBuilder.append(request.getHeaders()).append("\r\n");
-                            messageBuilder.append("\r\n");
-
-                            if (request.getContentLength() > 0) {
-                                messageBuilder.append(request.getBody()).append("\r\n");
-                            }
-
-                            String newClientMsg = messageBuilder.toString();
+                            String newClientMsg = request.toString();
 
                             // ServiceRecord nextService = getNextService(messageServicesTable, messagesIndex);
 

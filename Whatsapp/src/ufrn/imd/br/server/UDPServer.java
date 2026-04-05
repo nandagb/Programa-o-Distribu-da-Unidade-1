@@ -133,16 +133,7 @@ public class UDPServer implements ServerStrategy{
 				response.setHeader("X-Client-IP" + ": " + request.getHeader("X-Client-IP"));
 				response.setHeader("X-Client-Port" + ": " + request.getHeader("X-Client-Port"));
 
-				StringBuilder messageBuilder = new StringBuilder();
-
-				messageBuilder.append(response.getStatusLine()).append("\r\n");
-				messageBuilder.append(response.getHeaders()).append("\r\n");
-                messageBuilder.append("\r\n");
-                if (response.getContentLength() > 0) {
-                    messageBuilder.append(response.getBody()).append("\r\n");
-                }
-
-                String reply = messageBuilder.toString();
+				String reply = response.toString();
 				System.out.println("REPLY MESSAGE FOR GATEWAY: " + reply);
 				byte[] replymsg = reply.getBytes();
 
