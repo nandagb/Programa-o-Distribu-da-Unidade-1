@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
+import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -21,6 +22,7 @@ import ufrn.imd.br.service.Service;
 
 public class TCPServer implements ServerStrategy {
     private int port;
+    private Service service;
     ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     public TCPServer(int port){
@@ -120,8 +122,70 @@ public class TCPServer implements ServerStrategy {
         }
     }
 
+    private void sendHeartbeat() {
+		//Loop do HeartBeatSender
+		try {
+			//pode ser que mude depois
+			String gatewayAdressString = "127.0.0.1";
+			InetAddress gatewayAddress = InetAddress.getByName(gatewayAdressString);
+            // Socket socket = new Socket(gatewayAddress, heartBeatPort);
+            // PrintWriter heartBeatMessage = new PrintWriter(socket.getOutputStream(), true);
+
+			while (true) {
+				// System.out.println("Enviando heartbeat, tum tum: " + gatewayAddress + ", " + this.heartBeatPort);
+				// InetAddress address = serverSocket.getLocalAddress();
+
+				///// assembling request
+				HTTPRequest request = new HTTPRequest("POST /heartbeat HTTP/1.1");
+				request.setHeader("Host: localhost");
+				request.setHeader("Content-Type: application/json");
+				// Use if I ever switch to JSON
+				// String body = "{\"service_type\":\"" + this.service.getType() + "\";" +
+				//             	"\"ip\": \"" + gatewayAdressString  + "\";" +
+				// 				"\"port\": \"" + this.serverSocket.getLocalPort()  + "\";" +
+				//             	"}";
+				String body = this.service.getType() + ":" + gatewayAdressString + ":" + this.port;
+				int length = body.length();
+				request.setHeader("Content-Length: " + length);
+				request.setContentLength(length);
+				request.setBody(body);
+				/////
+
+				String msg = request.toString();
+				System.out.println("Enviando heartbeat, tum tum: ");
+				System.out.println(msg);				
+
+				Socket socket = null;
+                PrintWriter heartBeatMessage = null;
+
+                try {
+                    socket = new Socket(gatewayAddress, heartBeatPort);
+                    heartBeatMessage = new PrintWriter(socket.getOutputStream(), true);
+
+                    heartBeatMessage.println(msg);
+                } finally {
+                    if (heartBeatMessage != null) heartBeatMessage.close();
+                    if (socket != null) socket.close();
+                }
+
+				// Interval for sending heartbeat (every 1s)
+				Thread.sleep(heartBeatInterval);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (NumberFormatException nfe) {
+			System.out.println("Erro ao converter numero: " + nfe.getMessage());
+
+		} catch (Exception e) {
+			System.out.println("Erro inesperado: " + e.getMessage());
+		}
+	}
+
     public void interfaceMethod(Service service){
+        this.service = service;
         System.out.println("This is the TCP Server Strategy!");
+
+        new Thread(() -> sendHeartbeat()).start();
 
         try {
                                                          //porta,  tamanho da fila

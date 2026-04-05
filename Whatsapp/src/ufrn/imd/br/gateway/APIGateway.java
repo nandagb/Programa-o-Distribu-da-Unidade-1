@@ -44,28 +44,21 @@ public class APIGateway {
         try {
             GatewayContext context = new GatewayContext();
 
-            // APIGateway gateway = new APIGateway();
-
             switch(protocol) {
             case "udp":
                 System.out.println("opção udp selecionada");
-                // chama o context sem passar serviço
                 context.setStrategy(new UDPGateway());
                 break;
             case "tcp":
                 System.out.println("opção tcp selecionada");
                 context.setStrategy(new TCPGateway());
                 break;
-            // case "http":
-            //     break;
             // case "grpc":
             //     break;
             default:
                 System.out.println("Opção inválida!");
         }
-            new Thread(() -> context.server()).start();
-            new Thread(() -> context.listenHeartBeat()).start();
-            new Thread(() -> context.failureDetector()).start();
+            context.start();
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

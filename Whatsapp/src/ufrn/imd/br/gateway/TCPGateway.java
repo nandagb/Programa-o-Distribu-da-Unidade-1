@@ -4,8 +4,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,6 +30,60 @@ public class TCPGateway implements GatewayStrategy{
     public TCPGateway() {
         messageServicesTable = new ConcurrentHashMap<>();
         userServicesTable = new ConcurrentHashMap<>();
+    }
+
+    private void updateService(String key){
+        StringTokenizer tokenizer = new StringTokenizer(key, ":");
+        ServiceRecord service;
+
+        while (tokenizer.hasMoreElements()) {
+            try {
+                String serviceType = tokenizer.nextToken();
+                switch(serviceType){
+                    case "users":
+                        service = userServicesTable.get(key);
+                        if (service == null){
+                            userServicesTable.put(key, service);
+                            return;
+                        }
+                        break;
+                    default:
+                        service = messageServicesTable.get(key);
+                        if (service == null){
+                            messageServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
+                            return;
+                        }
+                }
+
+                service.refreshHeartBeat();
+            } catch (NumberFormatException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (UnknownHostException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void logServicesStatus() {
+        System.out.println("---Serviços de Mensagens registrados---");
+        for (HashMap.Entry<String, ServiceRecord> entry : messageServicesTable.entrySet()) {
+            String key = entry.getKey();
+            ServiceRecord service = entry.getValue();
+
+            System.out.println("Port: " + service.getPort() + ", Status: " + service.getStatus());
+        }
+        System.out.println("---------------------------------------");
+
+        System.out.println("---Serviços de Usuários registrados---");
+        for (HashMap.Entry<String, ServiceRecord> entry : userServicesTable.entrySet()) {
+            String key = entry.getKey();
+            ServiceRecord service = entry.getValue();
+
+            System.out.println("Port: " + service.getPort() + ", Status: " + service.getStatus());
+        }
+        System.out.println("---------------------------------------");
     }
 
     private HTTPRequest getHTTPRequest(BufferedReader clientRequest) {
@@ -173,14 +231,73 @@ public class TCPGateway implements GatewayStrategy{
 
     @Override
     public void listenHeartBeat() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'listenHeartBeat'");
+        try {
+                                                            //porta,  tamanho da fila
+                ServerSocket heartBeatSocket = new ServerSocket(heartBeatPort, 1000);
+
+                while(true) {
+                    System.out.println("TCP Gateway HeartBeat waiting for conection on port " + heartBeatPort + "...");
+                    Socket connection = heartBeatSocket.accept();
+
+                    System.out.println("HeartBeat Connection accepted!");
+
+                    BufferedReader serverRequest = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                    HTTPRequest request = getHTTPRequest(serverRequest);
+                    // HTTPRequest request = null;
+
+                    if (request == null) {
+                        System.out.println("Não foi possível processar a requisição!");
+                        //retornar erro sla
+                    }
+                    else {
+                        System.out.println("Client Request");
+                        System.out.println(request.getRequestLine());
+                        System.out.println(request.getHeaders());
+
+                        if (request.getContentLength() > 0 ) {
+                            System.out.println("REQUEST BODY: " + request.getBody());
+                        }
+
+                        updateService(request.getBody());
+                    }
+
+                }
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
     }
 
     @Override
     public void failureDetector() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'failureDetector'");
+        while(true) {
+            logServicesStatus();
+
+            for (HashMap.Entry<String, ServiceRecord> entry : messageServicesTable.entrySet()) {
+                String key = entry.getKey();
+                ServiceRecord service = entry.getValue();
+
+                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                    service.setStatus(false);
+                }
+            }
+
+            for (HashMap.Entry<String, ServiceRecord> entry : userServicesTable.entrySet()) {
+                String key = entry.getKey();
+                ServiceRecord service = entry.getValue();
+
+                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                    service.setStatus(false);
+                }
+            }
+
+            try {
+                Thread.sleep(failureDetectorInterval);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
     }
     
 }

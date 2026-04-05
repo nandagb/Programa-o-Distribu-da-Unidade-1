@@ -136,7 +136,6 @@ public class HTTPRequest {
 
         messageBuilder.append(this.requestLine).append("\r\n");
         messageBuilder.append(this.getHeaders()).append("\r\n");
-        messageBuilder.append("\r\n");
 
         if (this.contentLength > 0 ) {
             messageBuilder.append(this.body).append("\r\n");

@@ -215,18 +215,38 @@ public class UDPServer implements ServerStrategy{
 		//Loop do HeartBeatSender
 		try {
 			//pode ser que mude depois
-			InetAddress gatewayAddress = InetAddress.getByName("127.0.0.1");
+			String gatewayAdressString = "127.0.0.1";
+			InetAddress gatewayAddress = InetAddress.getByName(gatewayAdressString);
 
 			while (true) {
 				// System.out.println("Enviando heartbeat, tum tum: " + gatewayAddress + ", " + this.heartBeatPort);
 				// InetAddress address = serverSocket.getLocalAddress();
 
-				String msg = this.service.getType() + ":" + "127.0.0.1" + ":" + this.serverSocket.getLocalPort();
+				///// assembling request
+				HTTPRequest request = new HTTPRequest("POST /heartbeat HTTP/1.1");
+				request.setHeader("Host: localhost");
+				request.setHeader("Content-Type: application/json");
+				// Use if I ever switch to JSON
+				// String body = "{\"service_type\":\"" + this.service.getType() + "\";" +
+				//             	"\"ip\": \"" + gatewayAdressString  + "\";" +
+				// 				"\"port\": \"" + this.serverSocket.getLocalPort()  + "\";" +
+				//             	"}";
+				String body = this.service.getType() + ":" + gatewayAdressString + ":" + this.port;
+				int length = body.length();
+				request.setHeader("Content-Length: " + length);
+				request.setContentLength(length);
+				request.setBody(body);
+				/////
+
+				String msg = request.toString();
+				System.out.println("Enviando heartbeat, tum tum: ");
+				System.out.println(msg);
+
 				byte[] heartBeatMessage = msg.getBytes();
 				DatagramPacket heartBeatPacket = new DatagramPacket(heartBeatMessage, heartBeatMessage.length, gatewayAddress, this.heartBeatPort);
 
 				this.serverSocket.send(heartBeatPacket);
-				//Intervalo para envio de heartbeat (a cada 1s)
+				// Interval for sending heartbeat (every 1s)
 				Thread.sleep(heartBeatInterval);
 			}
 		} catch (IOException e) {

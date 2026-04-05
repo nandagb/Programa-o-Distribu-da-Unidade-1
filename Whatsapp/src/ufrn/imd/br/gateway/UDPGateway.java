@@ -27,7 +27,6 @@ public class UDPGateway implements GatewayStrategy {
     ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     public UDPGateway() throws Exception{
-
         messageServicesTable = new ConcurrentHashMap<>();
         userServicesTable = new ConcurrentHashMap<>();
     }
@@ -118,9 +117,16 @@ public class UDPGateway implements GatewayStrategy {
             }
 
             request.setHeaders(headersBuilder.toString());
+
             if (request.getContentLength() > 0) {
+                int totalRead = 0;
                 char[] body = new char[request.getContentLength()];
-                clientRequest.read(body, 0, request.getContentLength());
+
+                while (totalRead < request.getContentLength()) {
+                    int read = clientRequest.read(body, totalRead, request.getContentLength() - totalRead);
+                    if (read == -1) break;
+                    totalRead += read;
+                }
                 request.setBody(body);
             }
 
@@ -247,7 +253,6 @@ public class UDPGateway implements GatewayStrategy {
         }
     }
 
-
     @Override
     public void server() {
         DatagramSocket socket;
@@ -304,10 +309,10 @@ public class UDPGateway implements GatewayStrategy {
 				//converte mensagem do servidor em bytes para texto
                                             // dados,              posição inicial, quantidade de bytes
                 String message = new String(serverPacket.getData(), 0,       serverPacket.getLength());
-                // System.out.println("Gateway received this message from the heartbeat: " + message);
+                BufferedReader messageReader = new BufferedReader(new StringReader(message));
+                HTTPRequest request = getHTTPRequest(messageReader);
 
-                updateService(message);
-
+                updateService(request.getBody());
 			}
 		} catch (IOException e) {
 			e.printStackTrace();

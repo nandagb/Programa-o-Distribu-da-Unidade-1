@@ -9,15 +9,9 @@ public class GatewayContext {
         this.strategy = strategy;
     }
 
-    public void server() {
-        strategy.server();
-    }
-
-    public void listenHeartBeat() {
-        strategy.listenHeartBeat();
-    }
-
-    public void failureDetector() {
-        strategy.failureDetector();
+    public void start() {
+        new Thread(() -> strategy.server()).start();
+        new Thread(() -> strategy.listenHeartBeat()).start();
+        new Thread(() -> strategy.failureDetector()).start();
     }
 }
