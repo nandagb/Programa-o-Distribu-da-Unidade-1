@@ -1,6 +1,8 @@
 package ufrn.imd.br.gateway;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -13,6 +15,8 @@ import java.util.stream.Collectors;
 import java.util.concurrent.*;
 
 import ufrn.imd.br.gateway.strategy.GatewayStrategy;
+import ufrn.imd.br.http.HTTPRequest;
+import ufrn.imd.br.http.HTTPResponse;
 import ufrn.imd.br.model.ServiceRecord;
 
 public class UDPGateway implements GatewayStrategy {
@@ -96,49 +100,167 @@ public class UDPGateway implements GatewayStrategy {
         System.out.println("---------------------------------------");
     }
 
+    private HTTPRequest getHTTPRequest(BufferedReader clientRequest) {
+        StringBuilder headersBuilder = new StringBuilder();
+        String firstHeader;
+
+        try {
+            firstHeader = clientRequest.readLine();
+            HTTPRequest request = new HTTPRequest(firstHeader);
+
+            String line;
+            while ((line = clientRequest.readLine()) != null && !line.isEmpty()) {
+                if (line.startsWith("Content-Length:")) {
+                    request.setContentLength(line);
+                }
+
+                headersBuilder.append(line).append("\r\n");
+            }
+
+            request.setHeaders(headersBuilder.toString());
+            if (request.getContentLength() > 0) {
+                char[] body = new char[request.getContentLength()];
+                clientRequest.read(body, 0, request.getContentLength());
+                request.setBody(body);
+            }
+
+            return request;
+
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private HTTPResponse getHTTPResponse(BufferedReader serverResponse) {
+        StringBuilder headersBuilder = new StringBuilder();
+        String firstHeader;
+
+        try {
+            firstHeader = serverResponse.readLine();
+            HTTPResponse response = new HTTPResponse(firstHeader);
+
+            String line;
+            while ((line = serverResponse.readLine()) != null && !line.isEmpty()) {
+                System.out.println("READING LINE OF SERVER RESPONSE: " + line);
+                if (line.startsWith("Content-Length:")) {
+                    response.setContentLength(line);
+                }
+
+                headersBuilder.append(line).append("\r\n");
+            }
+
+            response.setHeaders(headersBuilder.toString());
+            if (response.getContentLength() > 0) {
+                char[] body = new char[response.getContentLength()];
+                serverResponse.read(body, 0, response.getContentLength());
+                response.setBody(body);
+            }
+
+            return response;
+
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     private DatagramPacket processRequest(DatagramPacket packet) {
         // converte mensagem do cliente em bytes para texto
                                             // dados,              posição inicial, quantidade de bytes
         String message = new String(packet.getData(), 0,       packet.getLength());
+        System.out.println("MESSAGE RECEIVED IN GATEWAY: " + message);
         int clientPort = packet.getPort();
         InetAddress clientAddress = packet.getAddress();
         // decodes message
-        System.out.println("UDP Gateway received this message from the client of port: " + packet.getPort() + ", " + message);
+        // System.out.println("UDP Gateway received this message from the client of port: " + packet.getPort() + ", " + message);
 
         try {
             packet.setAddress(InetAddress.getByName("localhost"));
 
-            StringTokenizer tokenizer = new StringTokenizer(message, ";");
-            String option = null;
-            String[] tokens = message.split(";", 2);
-            option = tokens[0];
-            option = tokenizer.nextToken();
+            BufferedReader messageReader = new BufferedReader(new StringReader(message));
 
-            switch(option) {
-                case "messages":
-                    if (messageServicesTable.isEmpty()) {
-                        System.out.println("No available server!");
-                        return null;
+            if (message.startsWith("HTTP/")) {
+                System.out.println("Resposta do Servidor" + message);
+
+                StringBuilder messageBuilder = new StringBuilder();
+                HTTPResponse response = getHTTPResponse(messageReader);
+
+                messageBuilder.append(response.getStatusLine()).append("\r\n");
+                messageBuilder.append(response.getHeaders()).append("\r\n");
+                messageBuilder.append("\r\n");
+
+                if (response.getContentLength() > 0 ) {
+                    messageBuilder.append(response.getBody()).append("\r\n");
+                }
+
+                String newServerResponse = messageBuilder.toString();
+                String ip = response.getHeader("X-Client-IP");
+
+                if (ip.startsWith("/")) {
+                    ip = ip.substring(1);
+                }
+
+                InetAddress ogClientAddress = InetAddress.getByName(ip);
+                int ogclientPort = Integer.parseInt(response.getHeader("X-Client-Port"));
+
+                return new DatagramPacket( newServerResponse.getBytes(), newServerResponse.getBytes().length, ogClientAddress, ogclientPort );
+            } else {
+                System.out.println("Requisição do Cliente");
+
+                HTTPRequest request = getHTTPRequest(messageReader);
+
+                if (request == null) {
+                    System.out.println("Não foi possível processar a requisição!");
+                    //retornar erro sla
+                    return null;
+                }
+                else {
+                    request.setHeader("X-Client-IP: " + clientAddress);
+                    request.setHeader("X-Client-Port: " + clientPort);
+
+                    System.out.println("PATH FROM UDP REQUEST: " + request.getPath());
+                    String path = request.getPath();
+                    switch (path) {
+                        case "/messages":
+                            // if (messageServicesTable.isEmpty()) {
+                            //     System.out.println("No available server!");
+                            //     return null;
+                            // }
+
+                            StringBuilder messageBuilder = new StringBuilder();
+
+                            messageBuilder.append(request.getRequestLine()).append("\r\n");
+                            messageBuilder.append(request.getHeaders()).append("\r\n");
+                            messageBuilder.append("\r\n");
+
+                            if (request.getContentLength() > 0) {
+                                messageBuilder.append(request.getBody()).append("\r\n");
+                            }
+
+                            String newClientMsg = messageBuilder.toString();
+
+                            // ServiceRecord nextService = getNextService(messageServicesTable, messagesIndex);
+
+                            // System.out.println("Sending request to messages server with port: " + nextService.getPort());
+
+                            // return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), nextService.getPort() );
+
+                            // Enviando apenas para porta 9004 por enquanto
+                            return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), 9004 );
                     }
+                }
 
-                    System.out.println("TOKENS 1: " + tokens[1]);
-
-                    String newClientMsg = clientAddress + ";" + clientPort + ";" + tokens[1];
-                    ServiceRecord nextService = getNextService(messageServicesTable, messagesIndex);
-
-                    System.out.println("Sending request to messages server with port: " + nextService.getPort());
-
-                    return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), nextService.getPort() );
-                default:
-                    System.out.println("Message from the server! " + message);
-
-                    String newServerMsg = tokens[1].split(";", 2)[1];
-                    String clientIP = option.startsWith("/") ? option.substring(1) : option;
-
-                    System.out.println("Gateway enviando resposta do servidor para a porta: " + packet.getPort());
-                    return new DatagramPacket( newServerMsg.getBytes(), newServerMsg.getBytes().length, InetAddress.getByName(clientIP), Integer.parseInt(tokens[1].split(";", 2)[0]) );
+                // TEMPORÁRIO; REMOVER DEPOIS
+                return null;
             }
         } catch (UnknownHostException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return null;
+        } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
             return null;

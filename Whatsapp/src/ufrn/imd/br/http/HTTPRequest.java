@@ -8,19 +8,27 @@ public class HTTPRequest {
     private String method;
     private String path;
     private String queryString;
-    private Map<String, String> queryParams = new HashMap<>();
+    private String requestLine;
+    private Map<String, String> queryParams;
+
 
     private int contentLength;
-    private String headers;
     private String body;
+    private Map<String, String> headers;
 
     public HTTPRequest() {
         this.contentLength = 0;
+        queryParams = new HashMap<>();
+        headers = new HashMap<>();
     }
 
-    public HTTPRequest(String firstHeader) {
+    public HTTPRequest(String requestLine) {
         this.contentLength = 0;
-        StringTokenizer tokenizer = new StringTokenizer(firstHeader);
+        this.requestLine = requestLine;
+        queryParams = new HashMap<>();
+        headers = new HashMap<>();
+
+        StringTokenizer tokenizer = new StringTokenizer(requestLine);
         this.method = tokenizer.nextToken();
 
         String pathQuery = tokenizer.nextToken();
@@ -49,6 +57,10 @@ public class HTTPRequest {
         }
     }
 
+    public String getRequestLine() {
+        return this.requestLine;
+    }
+
     public String getMethod() {
         return this.method;
     }
@@ -74,11 +86,37 @@ public class HTTPRequest {
     }
 
     public void setHeaders(String headers) {
-        this.headers = headers;
+        String[] lines = headers.split("\r\n");
+
+        for (String line : lines) {
+            this.setHeader(line);
+        }
+    }
+
+    public void setHeader(String header) {
+        int index = header.indexOf(":");
+        if (index > 0) {
+            String headerKey = header.substring(0, index).trim();
+            String value = header.substring(index + 1).trim();
+            this.headers.put(headerKey, value);
+        }
     }
 
     public String getHeaders() {
-        return this.headers;
+        StringBuilder builder = new StringBuilder();
+
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            builder.append(entry.getKey())
+                   .append(": ")
+                   .append(entry.getValue())
+                   .append("\r\n");
+        }
+
+        return builder.toString();
+    }
+
+    public String getHeader(String key) {
+        return headers.get(key);
     }
 
     public void setBody(char[] body) {

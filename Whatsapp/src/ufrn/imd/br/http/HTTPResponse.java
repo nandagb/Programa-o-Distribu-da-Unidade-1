@@ -1,5 +1,7 @@
 package ufrn.imd.br.http;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.StringTokenizer;
 
 public class HTTPResponse {
@@ -8,18 +10,23 @@ public class HTTPResponse {
     private String contentType;
     private int contentLength;
     private String protocol;
+    private String statusLine;
 
-    private String headers;
+    private Map<String, String> headers;
+    // private String headers;
     private String body;
 
     public HTTPResponse() {
         this.contentLength = 0;
+        headers = new HashMap<>();
     }
 
-    public HTTPResponse(String firstHeader) {
+    public HTTPResponse(String statusLine) {
         this.contentLength = 0;
+        headers = new HashMap<>();
+        this.statusLine = statusLine;
 
-        StringTokenizer tokenizer = new StringTokenizer(firstHeader);
+        StringTokenizer tokenizer = new StringTokenizer(statusLine);
         this.protocol = tokenizer.nextToken();
         this.code = Integer.parseInt(tokenizer.nextToken());
         this.status = tokenizer.nextToken();
@@ -30,6 +37,12 @@ public class HTTPResponse {
         this.protocol = protocol;
         this.code = code;
         this.status = status;
+        headers = new HashMap<>();
+        this.statusLine = protocol + " " + code + " " + status;
+    }
+
+    public String getStatusLine() {
+        return this.statusLine;
     }
 
     public String getStatus() {
@@ -68,12 +81,38 @@ public class HTTPResponse {
         return this.contentLength;
     }
 
-    public void setHeaders(String headers) {
-        this.headers = headers;
+        public void setHeaders(String headers) {
+        String[] lines = headers.split("\r\n");
+
+        for (String line : lines) {
+            this.setHeader(line);
+        }
+    }
+
+    public void setHeader(String header) {
+        int index = header.indexOf(":");
+        if (index > 0) {
+            String headerKey = header.substring(0, index).trim();
+            String value = header.substring(index + 1).trim();
+            this.headers.put(headerKey, value);
+        }
     }
 
     public String getHeaders() {
-        return this.headers;
+        StringBuilder builder = new StringBuilder();
+
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            builder.append(entry.getKey())
+                   .append(": ")
+                   .append(entry.getValue())
+                   .append("\r\n");
+        }
+
+        return builder.toString();
+    }
+
+    public String getHeader(String key) {
+        return headers.get(key);
     }
 
     public void setBody(char[] body) {

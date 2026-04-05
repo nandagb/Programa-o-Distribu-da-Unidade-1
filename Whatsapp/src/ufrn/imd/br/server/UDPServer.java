@@ -1,6 +1,8 @@
 package ufrn.imd.br.server;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -8,6 +10,8 @@ import java.net.SocketException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import ufrn.imd.br.http.HTTPRequest;
+import ufrn.imd.br.http.HTTPResponse;
 import ufrn.imd.br.model.Message;
 import ufrn.imd.br.server.strategy.ServerStrategy;
 import ufrn.imd.br.service.Service;
@@ -22,18 +26,137 @@ public class UDPServer implements ServerStrategy{
 		this.port = port;
     }
 
+	private void processMessage(String message){
+      System.out.println("processing message in Message Service: " + message);
+
+      String[] tokens = message.split(";");
+      String method = tokens[0];
+      System.out.println("METHOD: " + tokens[0]);
+
+      switch(method) {
+         case "send":
+			//calls service here
+			// this.service.sendMessage(Integer.parseInt(tokens[0]), Integer.parseInt(tokens[1]), tokens[2])
+            // sendMessage(tokens);
+            break;
+         case "delete":
+            break;
+         default:
+            System.out.println("\"Method No Allowed\"");
+      }
+   }
+
+   private HTTPRequest getHTTPRequest(BufferedReader clientRequest) {
+        StringBuilder headersBuilder = new StringBuilder();
+        String firstHeader;
+
+        try {
+            firstHeader = clientRequest.readLine();
+            HTTPRequest request = new HTTPRequest(firstHeader);
+
+            String line;
+            while ((line = clientRequest.readLine()) != null && !line.isEmpty()) {
+                if (line.startsWith("Content-Length:")) {
+                    request.setContentLength(line);
+                }
+
+                headersBuilder.append(line).append("\r\n");
+            }
+
+            request.setHeaders(headersBuilder.toString());
+            if (request.getContentLength() > 0) {
+                char[] body = new char[request.getContentLength()];
+                clientRequest.read(body, 0, request.getContentLength());
+                request.setBody(body);
+            }
+
+            return request;
+
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+	private HTTPResponse assembleHTTPResponse() {
+        String protocol = "HTTP/1.1";
+        int code = 200;
+        String status = "OK";
+        String contentType = "application/json";
+        String body = "{\"status\":\"ok\"}";
+        int contentLength = body.length();
+
+        StringBuilder headersBuilder = new StringBuilder();
+        headersBuilder.append(protocol + " " + code + " " + status).append("\r\n");
+
+        HTTPResponse response = new HTTPResponse("HTTP/1.1", 200, "OK");
+
+        headersBuilder.append("Content-Type: " + contentType).append("\r\n");
+        headersBuilder.append("Content-Length: " + contentLength).append("\r\n");
+
+        response.setHeaders(headersBuilder.toString());
+        response.setContentLength(contentLength);
+        response.setBody(body);
+
+        return response;
+    }
+
 	private DatagramPacket processRequest(DatagramPacket packet) {
 		//converte mensagem do cliente em bytes para texto
                                             // dados,              posição inicial, quantidade de bytes
         String message = new String(packet.getData(), 0,       packet.getLength());
-        System.out.println("Server received this message: " + message);
+		BufferedReader messageReader = new BufferedReader(new StringReader(message));
+
+		System.out.println("Server received this message: " + message);
+
+		HTTPRequest request = getHTTPRequest(messageReader);
+
+		if (request == null) {
+            System.out.println("Não foi possível processar a requisição!");
+            //retornar erro sla
+        }
+		else {
+			// this.service.processMessage(tokens[2]);
+
+			System.out.println("CLIENT IP RECEIVED FROM GATEWAY IN UDP SERVER: " + request.getHeader("X-Client-IP"));
+			System.out.println("CLIENT PORT RECEIVED FROM GATEWAY IN UDP SERVER: " + request.getHeader("X-Client-Port"));
+			System.out.println("CLIENT HEADERS: " + request.getHeaders());
+
+			HTTPResponse response = assembleHTTPResponse();
+
+            if (response == null) {
+                System.out.println("Não foi possível processar a resposta!");
+                //retornar erro sla
+            }
+			else {
+				response.setHeader("X-Client-IP" + ": " + request.getHeader("X-Client-IP"));
+				response.setHeader("X-Client-Port" + ": " + request.getHeader("X-Client-Port"));
+
+				StringBuilder messageBuilder = new StringBuilder();
+
+				messageBuilder.append(response.getStatusLine()).append("\r\n");
+				messageBuilder.append(response.getHeaders()).append("\r\n");
+                messageBuilder.append("\r\n");
+                if (response.getContentLength() > 0) {
+                    messageBuilder.append(response.getBody()).append("\r\n");
+                }
+
+                String reply = messageBuilder.toString();
+				System.out.println("REPLY MESSAGE FOR GATEWAY: " + reply);
+				byte[] replymsg = reply.getBytes();
+
+				return new DatagramPacket(replymsg, replymsg.length, packet.getAddress(), packet.getPort());
+			}
+		}
 
 		////
 		String[] tokens = message.split(";", 3);
 		String clientId = tokens[0] + ";" + tokens[1];
 		////
 		// apenas a parte importante da mensagem
-		this.service.processMessage(tokens[2]);
+		// this.service.processMessage(tokens[2]);
+		processMessage(tokens[2]);
 
 		// responder cliente
 		String reply = clientId + ";" + "OK";
@@ -46,7 +169,6 @@ public class UDPServer implements ServerStrategy{
 	public void interfaceMethod(Service service){
 		this.service = service;
 
-		wppMessage = new Message();
         System.out.println("UDP Server Messenger started");
 
 		try {
