@@ -35,8 +35,6 @@ public class TCPServer implements ServerStrategy {
             firstHeader = clientRequest.readLine();
             HTTPRequest request = new HTTPRequest(firstHeader);
 
-            headersBuilder.append(firstHeader).append("\r\n");
-
             String line;
             while ((line = clientRequest.readLine()) != null && !line.isEmpty()) {
                 headersBuilder.append(line).append("\r\n");
@@ -69,9 +67,7 @@ public class TCPServer implements ServerStrategy {
         int contentLength = body.length();
 
         StringBuilder headersBuilder = new StringBuilder();
-        headersBuilder.append(protocol + " " + code + " " + status).append("\r\n");
-
-        HTTPResponse response = new HTTPResponse("HTTP/1.1", 200, "OK");
+        HTTPResponse response = new HTTPResponse(protocol, code, status);
 
         headersBuilder.append("Content-Type: " + contentType).append("\r\n");
         headersBuilder.append("Content-Length: " + contentLength).append("\r\n");
@@ -99,6 +95,7 @@ public class TCPServer implements ServerStrategy {
                 System.out.println("REQUEST METHOD: " + request.getMethod());
                 System.out.println("REQUEST PATH: " + request.getPath());
                 System.out.println("REQUEST QUERY: " + request.getQueryString());
+                // call process message here
             }
 
             HTTPResponse response = assembleHTTPResponse();
@@ -110,6 +107,7 @@ public class TCPServer implements ServerStrategy {
             else {
                 PrintWriter serverResponse = new PrintWriter(connection.getOutputStream());
 
+                serverResponse.println(response.getStatusLine());
                 serverResponse.println(response.getHeaders());
                 if (response.getContentLength() > 0 ) {
                     serverResponse.print(response.getBody());

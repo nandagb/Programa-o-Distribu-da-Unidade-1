@@ -227,12 +227,12 @@ public class UDPServer implements ServerStrategy{
 			InetAddress gatewayAddress = InetAddress.getByName("127.0.0.1");
 
 			while (true) {
-				System.out.println("Enviando heartbeat, tum tum: " + gatewayAddress + ", " + gatewayPort);
+				// System.out.println("Enviando heartbeat, tum tum: " + gatewayAddress + ", " + this.heartBeatPort);
 				// InetAddress address = serverSocket.getLocalAddress();
 
 				String msg = this.service.getType() + ":" + "127.0.0.1" + ":" + this.serverSocket.getLocalPort();
 				byte[] heartBeatMessage = msg.getBytes();
-				DatagramPacket heartBeatPacket = new DatagramPacket(heartBeatMessage, heartBeatMessage.length, gatewayAddress, this.gatewayPort);
+				DatagramPacket heartBeatPacket = new DatagramPacket(heartBeatMessage, heartBeatMessage.length, gatewayAddress, this.heartBeatPort);
 
 				this.serverSocket.send(heartBeatPacket);
 				//Intervalo para envio de heartbeat (a cada 1s)
