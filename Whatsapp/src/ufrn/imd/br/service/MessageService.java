@@ -6,10 +6,9 @@ import java.util.ArrayList;
 import java.util.Map;
 
 public class MessageService implements Service {
-   private ArrayList<Message> messages;
 
    public MessageService(){
-      messages = new ArrayList<>();
+
    }
 
    @Override

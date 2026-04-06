@@ -57,13 +57,12 @@ public class Application {
         // Service service;
 
         switch(service) {
-            // case "users":
-            //     System.out.println("opção users selecionada");
-            //     context.setStrategy(new UDPServer("8080"));
-            //     break;
+            case "users":
+                System.out.println("opção users selecionada");
+                context.executeStrategy(new UserService());
+                break;
             case "messages":
                 System.out.println("opção messages selecionada");
-                // service = new MessageService();
                 context.executeStrategy(new MessageService());
                 break;
             default:

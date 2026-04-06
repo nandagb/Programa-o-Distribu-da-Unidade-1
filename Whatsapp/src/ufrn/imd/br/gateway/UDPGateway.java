@@ -49,33 +49,35 @@ public class UDPGateway implements GatewayStrategy {
         StringTokenizer tokenizer = new StringTokenizer(key, ":");
         ServiceRecord service;
 
-        while (tokenizer.hasMoreElements()) {
-            try {
-                String serviceType = tokenizer.nextToken();
-                switch(serviceType){
-                    case "users":
-                        service = userServicesTable.get(key);
-                        if (service == null){
-                            userServicesTable.put(key, service);
-                            return;
-                        }
-                        break;
-                    default:
-                        service = messageServicesTable.get(key);
-                        if (service == null){
-                            messageServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
-                            return;
-                        }
-                }
+        try {
+            String serviceType = tokenizer.nextToken();
 
-                service.refreshHeartBeat();
-            } catch (NumberFormatException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } catch (UnknownHostException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+            switch(serviceType){
+                case "users":
+                    service = userServicesTable.get(key);
+
+                    if (service == null){
+                        userServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
+                        return;
+                    }
+
+                    break;
+                default:
+                    service = messageServicesTable.get(key);
+
+                    if (service == null){
+                        messageServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
+                        return;
+                    }
             }
+
+            service.refreshHeartBeat();
+        } catch (NumberFormatException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (UnknownHostException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
     }
 

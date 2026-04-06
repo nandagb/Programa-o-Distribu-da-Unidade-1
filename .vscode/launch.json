@@ -40,10 +40,17 @@
         },
         {
             "type": "java",
-            "name": "Run UDP Users",
+            "name": "Run UDP Users 1",
             "request": "launch",
             "mainClass": "ufrn.imd.br.server.Application",
-            "args": ["udp", "users"]
+            "args": ["udp", "users", "1"]
+        },
+        {
+            "type": "java",
+            "name": "Run UDP Users 2",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.server.Application",
+            "args": ["udp", "users", "2"]
         },
         {
             "type": "java",
@@ -61,39 +68,17 @@
         },
         {
             "type": "java",
-            "name": "Run TCP Users",
+            "name": "Run TCP Users 1",
             "request": "launch",
             "mainClass": "ufrn.imd.br.server.Application",
-            "args": ["tcp", "users"]
+            "args": ["tcp", "users", "1"]
         },
         {
             "type": "java",
-            "name": "Run HTTP Messages",
+            "name": "Run TCP Users 2",
             "request": "launch",
             "mainClass": "ufrn.imd.br.server.Application",
-            "args": ["http", "messages"]
-        },
-        {
-            "type": "java",
-            "name": "Run HTTP Users",
-            "request": "launch",
-            "mainClass": "ufrn.imd.br.server.Application",
-            "args": ["http", "users"]
-        },
-        {
-            "type": "java",
-            "name": "Run GRPC Messages",
-            "request": "launch",
-            "mainClass": "ufrn.imd.br.server.Application",
-            "args": ["grpc", "messages"]
-        },
-        {
-            "type": "java",
-            "name": "Run GRPC Users",
-            "request": "launch",
-            "mainClass": "ufrn.imd.br.server.Application",
-            "args": ["grpc", "users"]
+            "args": ["tcp", "users", "2"]
         }
-
     ]
 }

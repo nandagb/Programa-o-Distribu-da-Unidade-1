@@ -52,33 +52,34 @@ public class TCPGateway implements GatewayStrategy{
         StringTokenizer tokenizer = new StringTokenizer(key, ":");
         ServiceRecord service;
 
-        while (tokenizer.hasMoreElements()) {
-            try {
-                String serviceType = tokenizer.nextToken();
-                switch(serviceType){
-                    case "users":
-                        service = userServicesTable.get(key);
-                        if (service == null){
-                            userServicesTable.put(key, service);
-                            return;
-                        }
-                        break;
-                    default:
-                        service = messageServicesTable.get(key);
-                        if (service == null){
-                            messageServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
-                            return;
-                        }
-                }
+        try {
+            String serviceType = tokenizer.nextToken();
 
-                service.refreshHeartBeat();
-            } catch (NumberFormatException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } catch (UnknownHostException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+            switch(serviceType){
+                case "users":
+                    service = userServicesTable.get(key);
+                    if (service == null){
+                        userServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
+                        return;
+                    }
+
+                    break;
+                default:
+                    service = messageServicesTable.get(key);
+
+                    if (service == null){
+                        messageServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
+                        return;
+                    }
             }
+
+            service.refreshHeartBeat();
+        } catch (NumberFormatException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (UnknownHostException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
     }
 
@@ -237,7 +238,7 @@ public class TCPGateway implements GatewayStrategy{
                 ServerSocket serverSocket = new ServerSocket(serverPort, 1000);
 
                 while(true) {
-                    System.out.println("TCP Gateway waiting for conection on port " + serverPort + "...");
+                    // System.out.println("TCP Gateway waiting for conection on port " + serverPort + "...");
                     Socket connection = serverSocket.accept();
 
                     executor.execute(() -> processRequest(connection));
@@ -256,10 +257,10 @@ public class TCPGateway implements GatewayStrategy{
                 ServerSocket heartBeatSocket = new ServerSocket(heartBeatPort, 1000);
 
                 while(true) {
-                    System.out.println("TCP Gateway HeartBeat waiting for conection on port " + heartBeatPort + "...");
+                    // System.out.println("TCP Gateway HeartBeat waiting for conection on port " + heartBeatPort + "...");
                     Socket connection = heartBeatSocket.accept();
 
-                    System.out.println("HeartBeat Connection accepted!");
+                    // System.out.println("HeartBeat Connection accepted!");
 
                     BufferedReader serverRequest = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                     HTTPRequest request = getHTTPRequest(serverRequest);
@@ -270,13 +271,13 @@ public class TCPGateway implements GatewayStrategy{
                         //retornar erro sla
                     }
                     else {
-                        System.out.println("Client Request");
-                        System.out.println(request.getRequestLine());
-                        System.out.println(request.getHeaders());
+                        // System.out.println("Client Request");
+                        // System.out.println(request.getRequestLine());
+                        // System.out.println(request.getHeaders());
 
-                        if (request.getContentLength() > 0 ) {
-                            System.out.println("REQUEST BODY: " + request.getBody());
-                        }
+                        // if (request.getContentLength() > 0 ) {
+                        //     System.out.println("REQUEST BODY: " + request.getBody());
+                        // }
 
                         updateService(request.getBody());
                     }

@@ -39,7 +39,6 @@ public class UDPServer implements ServerStrategy{
     }
 
 	private HTTPResponse getServiceResponse(HTTPRequest request){
-		System.out.println("INSIDE GET SERVER RESPONSE");
 	  	ServiceResponse serviceResponse = this.service.processMessage(request.getMethod(), request.getBody(), request.getQueryParams());
 
 	  	String protocol = "HTTP/1.1";
@@ -211,8 +210,8 @@ public class UDPServer implements ServerStrategy{
 				/////
 
 				String msg = request.toString();
-				System.out.println("Enviando heartbeat, tum tum: ");
-				System.out.println(msg);
+				// System.out.println("Enviando heartbeat, tum tum: ");
+				// System.out.println(msg);
 
 				byte[] heartBeatMessage = msg.getBytes();
 				DatagramPacket heartBeatPacket = new DatagramPacket(heartBeatMessage, heartBeatMessage.length, gatewayAddress, this.heartBeatPort);

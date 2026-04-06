@@ -166,8 +166,8 @@ public class TCPServer implements ServerStrategy {
 				/////
 
 				String msg = request.toString();
-				System.out.println("Enviando heartbeat, tum tum: ");
-				System.out.println(msg);				
+				// System.out.println("Enviando heartbeat, tum tum: ");
+				// System.out.println(msg);
 
 				Socket socket = null;
                 PrintWriter heartBeatMessage = null;
