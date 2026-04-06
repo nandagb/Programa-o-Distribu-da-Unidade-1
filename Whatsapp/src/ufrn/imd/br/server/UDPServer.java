@@ -15,6 +15,7 @@ import ufrn.imd.br.http.HTTPResponse;
 import ufrn.imd.br.model.Message;
 import ufrn.imd.br.server.strategy.ServerStrategy;
 import ufrn.imd.br.service.Service;
+import ufrn.imd.br.service.ServiceResponse;
 
 public class UDPServer implements ServerStrategy{
 	private int port;
@@ -26,24 +27,40 @@ public class UDPServer implements ServerStrategy{
 		this.port = port;
     }
 
-	private void processMessage(String message){
-      System.out.println("processing message in Message Service: " + message);
+	private String mapStatus(int code) {
+        switch (code) {
+            case 200: return "OK";
+            case 201: return "Created";
+            case 400: return "Bad Request";
+            case 404: return "Not Found";
+            case 500: return "Internal Server Error";
+            default: return "Unknown";
+        }
+    }
 
-      String[] tokens = message.split(";");
-      String method = tokens[0];
-      System.out.println("METHOD: " + tokens[0]);
+	private HTTPResponse getServiceResponse(HTTPRequest request){
+		System.out.println("INSIDE GET SERVER RESPONSE");
+	  	ServiceResponse serviceResponse = this.service.processMessage(request.getMethod(), request.getBody(), request.getQueryParams());
 
-      switch(method) {
-         case "send":
-			//calls service here
-			// this.service.sendMessage(Integer.parseInt(tokens[0]), Integer.parseInt(tokens[1]), tokens[2])
-            // sendMessage(tokens);
-            break;
-         case "delete":
-            break;
-         default:
-            System.out.println("\"Method No Allowed\"");
-      }
+	  	String protocol = "HTTP/1.1";
+	  	int code = serviceResponse.getStatusCode();
+	  	String status = mapStatus(code);
+	  	String contentType = "application/json";
+	  	String body = serviceResponse.getBody();
+	  	int contentLength = body.length();
+	  	StringBuilder headersBuilder = new StringBuilder();
+		
+	  	headersBuilder.append(protocol + " " + code + " " + status).append("\r\n");
+	  	HTTPResponse response = new HTTPResponse(protocol, code, status);
+
+	  	headersBuilder.append("Content-Type: " + contentType).append("\r\n");
+	  	headersBuilder.append("Content-Length: " + contentLength).append("\r\n");
+
+	  	response.setHeaders(headersBuilder.toString());
+	  	response.setContentLength(contentLength);
+	  	response.setBody(body);
+
+	  	return response;
    }
 
    private HTTPRequest getHTTPRequest(BufferedReader clientRequest) {
@@ -79,30 +96,8 @@ public class UDPServer implements ServerStrategy{
         }
     }
 
-	private HTTPResponse assembleHTTPResponse() {
-        String protocol = "HTTP/1.1";
-        int code = 200;
-        String status = "OK";
-        String contentType = "application/json";
-        String body = "{\"status\":\"ok\"}";
-        int contentLength = body.length();
-
-        StringBuilder headersBuilder = new StringBuilder();
-        headersBuilder.append(protocol + " " + code + " " + status).append("\r\n");
-
-        HTTPResponse response = new HTTPResponse("HTTP/1.1", 200, "OK");
-
-        headersBuilder.append("Content-Type: " + contentType).append("\r\n");
-        headersBuilder.append("Content-Length: " + contentLength).append("\r\n");
-
-        response.setHeaders(headersBuilder.toString());
-        response.setContentLength(contentLength);
-        response.setBody(body);
-
-        return response;
-    }
-
 	private DatagramPacket processRequest(DatagramPacket packet) {
+		System.out.println("Conection accepted!");
 		//converte mensagem do cliente em bytes para texto
                                             // dados,              posição inicial, quantidade de bytes
         String message = new String(packet.getData(), 0,       packet.getLength());
@@ -118,7 +113,7 @@ public class UDPServer implements ServerStrategy{
 			return null;
         }
 		else {
-			HTTPResponse response = assembleHTTPResponse();
+			HTTPResponse response = getServiceResponse(request);
 
             if (response == null) {
                 System.out.println("Não foi possível processar a resposta!");
@@ -199,9 +194,6 @@ public class UDPServer implements ServerStrategy{
 			InetAddress gatewayAddress = InetAddress.getByName(gatewayAdressString);
 
 			while (true) {
-				// System.out.println("Enviando heartbeat, tum tum: " + gatewayAddress + ", " + this.heartBeatPort);
-				// InetAddress address = serverSocket.getLocalAddress();
-
 				///// assembling request
 				HTTPRequest request = new HTTPRequest("POST /heartbeat HTTP/1.1");
 				request.setHeader("Host: localhost");

@@ -1,7 +1,8 @@
 package ufrn.imd.br.service;
 
+import java.util.Map;
+
 public interface Service {
     String getType();
-    void processMessage(String message);
-    
+    ServiceResponse processMessage(String path, String message, Map<String, String> queryParams);
 }

@@ -174,6 +174,7 @@ public class UDPGateway implements GatewayStrategy {
     }
 
     private DatagramPacket processRequest(DatagramPacket packet) {
+        System.out.println("Conection accepted!");
         // converte mensagem do cliente em bytes para texto
                                             // dados,              posição inicial, quantidade de bytes
         String message = new String(packet.getData(), 0,       packet.getLength());

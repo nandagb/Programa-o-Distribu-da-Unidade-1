@@ -19,6 +19,7 @@ import ufrn.imd.br.http.HTTPRequest;
 import ufrn.imd.br.http.HTTPResponse;
 import ufrn.imd.br.server.strategy.ServerStrategy;
 import ufrn.imd.br.service.Service;
+import ufrn.imd.br.service.ServiceResponse;
 
 public class TCPServer implements ServerStrategy {
     private int port;
@@ -60,26 +61,41 @@ public class TCPServer implements ServerStrategy {
         }
     }
 
-    private HTTPResponse assembleHTTPResponse() {
-        String protocol = "HTTP/1.1";
-        int code = 200;
-        String status = "OK";
-        String contentType = "application/json";
-        String body = "{\"status\":\"ok\"}";
-        int contentLength = body.length();
-
-        StringBuilder headersBuilder = new StringBuilder();
-        HTTPResponse response = new HTTPResponse(protocol, code, status);
-
-        headersBuilder.append("Content-Type: " + contentType).append("\r\n");
-        headersBuilder.append("Content-Length: " + contentLength).append("\r\n");
-
-        response.setHeaders(headersBuilder.toString());
-        response.setContentLength(contentLength);
-        response.setBody(body);
-
-        return response;
+    private String mapStatus(int code) {
+        switch (code) {
+            case 200: return "OK";
+            case 201: return "Created";
+            case 400: return "Bad Request";
+            case 404: return "Not Found";
+            case 500: return "Internal Server Error";
+            default: return "Unknown";
+        }
     }
+
+    private HTTPResponse getServiceResponse(HTTPRequest request){
+		System.out.println("INSIDE GET SERVER RESPONSE");
+	  	ServiceResponse serviceResponse = this.service.processMessage(request.getMethod(), request.getBody(), request.getQueryParams());
+
+	  	String protocol = "HTTP/1.1";
+	  	int code = serviceResponse.getStatusCode();
+	  	String status = mapStatus(code);
+	  	String contentType = "application/json";
+	  	String body = serviceResponse.getBody();
+	  	int contentLength = body.length();
+	  	StringBuilder headersBuilder = new StringBuilder();
+		
+	  	headersBuilder.append(protocol + " " + code + " " + status).append("\r\n");
+	  	HTTPResponse response = new HTTPResponse(protocol, code, status);
+
+	  	headersBuilder.append("Content-Type: " + contentType).append("\r\n");
+	  	headersBuilder.append("Content-Length: " + contentLength).append("\r\n");
+
+	  	response.setHeaders(headersBuilder.toString());
+	  	response.setContentLength(contentLength);
+	  	response.setBody(body);
+
+	  	return response;
+   }
 
     private void processRequest(Socket connection) {
         System.out.println("Conection accepted!");
@@ -94,27 +110,25 @@ public class TCPServer implements ServerStrategy {
                 //retornar erro sla
             }
             else {
+                HTTPResponse response = getServiceResponse(request);
                 // System.out.println("REQUEST METHOD: " + request.getMethod());
                 // System.out.println("REQUEST PATH: " + request.getPath());
                 // System.out.println("REQUEST QUERY: " + request.getQueryString());
-                // call process message here
-            }
 
-            HTTPResponse response = assembleHTTPResponse();
-
-            if (response == null) {
-                System.out.println("Não foi possível processar a resposta!");
-                //retornar erro sla
-            }
-            else {
-                PrintWriter serverResponse = new PrintWriter(connection.getOutputStream());
-
-                serverResponse.println(response.getStatusLine());
-                serverResponse.println(response.getHeaders());
-                if (response.getContentLength() > 0 ) {
-                    serverResponse.print(response.getBody());
+                if (response == null) {
+                    System.out.println("Não foi possível processar a resposta!");
+                    //retornar erro sla
                 }
-                serverResponse.flush();
+                else {
+                    PrintWriter serverResponse = new PrintWriter(connection.getOutputStream());
+
+                    serverResponse.println(response.getStatusLine());
+                    serverResponse.println(response.getHeaders());
+                    if (response.getContentLength() > 0 ) {
+                        serverResponse.print(response.getBody());
+                    }
+                    serverResponse.flush();
+                }
             }
         } catch (IOException e) {
             // TODO Auto-generated catch block

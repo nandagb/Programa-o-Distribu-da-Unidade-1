@@ -57,6 +57,10 @@ public class HTTPRequest {
         }
     }
 
+    public Map<String, String> getQueryParams() {
+        return this.queryParams;
+    }
+
     public String getRequestLine() {
         return this.requestLine;
     }
