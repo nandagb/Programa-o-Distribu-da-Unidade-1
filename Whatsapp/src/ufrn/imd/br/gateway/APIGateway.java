@@ -21,7 +21,7 @@ public class APIGateway {
     private ConcurrentHashMap<String, ServiceRecord> userServicesTable;
     AtomicInteger messagesIndex = new AtomicInteger(0);
     AtomicInteger usersIndex = new AtomicInteger(0);
-    private int heartBeatTimeout = 3000;
+    private int heartBeatTimeout = 5000;
     private int failureDetectorInterval = 1000;
     private DatagramSocket heartBeatSocket;
     public int heartBeatGatewayPort = 9007;

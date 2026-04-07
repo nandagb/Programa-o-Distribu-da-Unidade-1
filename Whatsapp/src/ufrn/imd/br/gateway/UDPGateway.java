@@ -77,6 +77,9 @@ public class UDPGateway implements GatewayStrategy {
                     }
             }
 
+            if (!service.getStatus()) {
+                System.out.println("Servidor de Port: " + service.getPort() + " iniciado");
+            }
             service.refreshHeartBeat();
         } catch (NumberFormatException e) {
             // TODO Auto-generated catch block
@@ -347,7 +350,7 @@ public class UDPGateway implements GatewayStrategy {
                 String key = entry.getKey();
                 ServiceRecord service = entry.getValue();
 
-                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
                     System.out.println("Servidor de Port: " + service.getPort() + " morreu");
                     service.setStatus(false);
                 }
@@ -357,7 +360,7 @@ public class UDPGateway implements GatewayStrategy {
                 String key = entry.getKey();
                 ServiceRecord service = entry.getValue();
 
-                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
                     System.out.println("Servidor de Port: " + service.getPort() + " morreu");
                     service.setStatus(false);
                 }

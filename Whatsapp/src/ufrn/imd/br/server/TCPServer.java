@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 
 import ufrn.imd.br.http.HTTPRequest;
 import ufrn.imd.br.http.HTTPResponse;
+import ufrn.imd.br.http.HTTPUtils;
 import ufrn.imd.br.server.strategy.ServerStrategy;
 import ufrn.imd.br.service.Service;
 import ufrn.imd.br.service.ServiceResponse;
@@ -61,24 +62,13 @@ public class TCPServer implements ServerStrategy {
         }
     }
 
-    private String mapStatus(int code) {
-        switch (code) {
-            case 200: return "OK";
-            case 201: return "Created";
-            case 400: return "Bad Request";
-            case 404: return "Not Found";
-            case 500: return "Internal Server Error";
-            default: return "Unknown";
-        }
-    }
-
     private HTTPResponse getServiceResponse(HTTPRequest request){
 		System.out.println("INSIDE GET SERVER RESPONSE");
 	  	ServiceResponse serviceResponse = this.service.processMessage(request.getMethod(), request.getBody(), request.getQueryParams());
 
 	  	String protocol = "HTTP/1.1";
 	  	int code = serviceResponse.getStatusCode();
-	  	String status = mapStatus(code);
+	  	String status = HTTPUtils.mapStatus(code);
 	  	String contentType = "application/json";
 	  	String body = serviceResponse.getBody();
 	  	int contentLength = body.length();

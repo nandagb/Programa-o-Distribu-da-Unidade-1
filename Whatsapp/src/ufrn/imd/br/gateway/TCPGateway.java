@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 
 import ufrn.imd.br.gateway.strategy.GatewayStrategy;
 import ufrn.imd.br.http.HTTPRequest;
+import ufrn.imd.br.http.HTTPUtils;
 import ufrn.imd.br.http.HTTPResponse;
 import ufrn.imd.br.model.ServiceRecord;
 
@@ -42,7 +43,12 @@ public class TCPGateway implements GatewayStrategy{
 
         if (services.isEmpty()) return null;
 
-        int i = index.getAndUpdate(v -> (v + 1) % services.size());
+        int size = services.size();
+        int i = index.getAndUpdate(v -> (v + 1) % size);
+
+        if (i >= size) {
+            i = 0;
+        }
 
         // old value of index
         return services.get(i);
@@ -77,6 +83,10 @@ public class TCPGateway implements GatewayStrategy{
                         System.out.println("Servidor de Port: " + port + " iniciado");
                         return;
                     }
+            }
+
+            if (!service.getStatus()) {
+                System.out.println("Servidor de Port: " + service.getPort() + " iniciado");
             }
 
             service.refreshHeartBeat();
@@ -168,13 +178,36 @@ public class TCPGateway implements GatewayStrategy{
 
         } catch (IOException e) {
             // TODO Auto-generated catch block
-            e.printStackTrace();
-            return null;
+            // e.printStackTrace();
+            // return null;
+            return getHTTPErrorResponse(503);
         }
     }
 
+    private HTTPResponse getHTTPErrorResponse(int code) {
+        String protocol = "HTTP/1.1";
+        String status = HTTPUtils.mapStatus(code);
+        String contentType = "application/json";
+        String body = "{\"error\":\"resource not found\"}";
+        int contentLength = body.length();
+
+        StringBuilder headersBuilder = new StringBuilder();
+        headersBuilder.append(protocol + " " + code + " " + status).append("\r\n");
+
+        HTTPResponse response = new HTTPResponse(protocol, code, status);
+
+        headersBuilder.append("Content-Type: " + contentType).append("\r\n");
+        headersBuilder.append("Content-Length: " + contentLength).append("\r\n");
+
+        response.setHeaders(headersBuilder.toString());
+        response.setContentLength(contentLength);
+        response.setBody(body);
+
+        return response;
+    }
+
     private void processRequest(Socket connection) {
-        System.out.println("Conection accepted!");
+        // System.out.println("Conection accepted!");
 
         BufferedReader clientRequest;
         try {
@@ -205,8 +238,8 @@ public class TCPGateway implements GatewayStrategy{
                     Socket serviceSocket = new Socket("localhost", nextService.getPort());
                     PrintWriter gatewayRequest = new PrintWriter(serviceSocket.getOutputStream());
 
-                    System.out.println("Client Request");
-                    System.out.println("REQUEST HEADERS: " + request.getHeaders());
+                    // System.out.println("Client Request");
+                    // System.out.println("REQUEST HEADERS: " + request.getHeaders());
 
                     gatewayRequest.println(request.getRequestLine());
                     gatewayRequest.println(request.getHeaders());
@@ -228,8 +261,8 @@ public class TCPGateway implements GatewayStrategy{
                         //retornar erro sla
                     }
                     else {
-                        System.out.println("Server response");
-                        System.out.println("RESPONSE HEADERS: " + response.getHeaders());
+                        // System.out.println("Server response");
+                        // System.out.println("RESPONSE HEADERS: " + response.getHeaders());
                         gatewayResponse.println(response.getStatusLine());
                         gatewayResponse.println(response.getHeaders());
 
@@ -242,11 +275,30 @@ public class TCPGateway implements GatewayStrategy{
                     }
 
                 }
+                else {
+                    System.out.println("Nenhum servidor disponível!");
+                }
 
             }
         } catch (IOException e) {
             // TODO Auto-generated catch block
-            e.printStackTrace();
+            HTTPResponse response = getHTTPErrorResponse(503);
+            try {
+                PrintWriter gatewayResponse = new PrintWriter(connection.getOutputStream());
+                gatewayResponse.println(response.getStatusLine());
+                gatewayResponse.println(response.getHeaders());
+
+                if (response.getContentLength() > 0 ) {
+                    System.out.println("RESPONSE BODY: " + response.getBody());
+                    gatewayResponse.print(response.getBody());
+                }
+
+                gatewayResponse.flush();
+            } catch (IOException e1) {
+                // TODO Auto-generated catch block
+                e1.printStackTrace();
+            }
+            // e.printStackTrace();
         }
 
     }
@@ -318,7 +370,7 @@ public class TCPGateway implements GatewayStrategy{
                 String key = entry.getKey();
                 ServiceRecord service = entry.getValue();
 
-                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
                     System.out.println("Servidor de Port: " + service.getPort() + " morreu");
                     service.setStatus(false);
                 }
@@ -328,7 +380,7 @@ public class TCPGateway implements GatewayStrategy{
                 String key = entry.getKey();
                 ServiceRecord service = entry.getValue();
 
-                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
                     System.out.println("Servidor de Port: " + service.getPort() + " morreu");
                     service.setStatus(false);
                 }
