@@ -57,7 +57,10 @@ public class UDPGateway implements GatewayStrategy {
                     service = userServicesTable.get(key);
 
                     if (service == null){
-                        userServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
+                        InetAddress address = InetAddress.getByName(tokenizer.nextToken());
+                        int port = Integer.parseInt(tokenizer.nextToken());
+                        userServicesTable.put(key, new ServiceRecord(address, port));
+                        System.out.println("Servidor de Port: " + port + " iniciado");
                         return;
                     }
 
@@ -66,7 +69,10 @@ public class UDPGateway implements GatewayStrategy {
                     service = messageServicesTable.get(key);
 
                     if (service == null){
-                        messageServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
+                        InetAddress address = InetAddress.getByName(tokenizer.nextToken());
+                        int port = Integer.parseInt(tokenizer.nextToken());
+                        messageServicesTable.put(key, new ServiceRecord(address, port));
+                        System.out.println("Servidor de Port: " + port + " iniciado");
                         return;
                     }
             }
@@ -222,6 +228,8 @@ public class UDPGateway implements GatewayStrategy {
 
                     System.out.println("PATH FROM UDP REQUEST: " + request.getPath());
                     String path = request.getPath();
+                    String newClientMsg = request.toString();
+                    ServiceRecord nextService = null;
                     switch (path) {
                         case "/messages":
                             // if (messageServicesTable.isEmpty()) {
@@ -229,13 +237,19 @@ public class UDPGateway implements GatewayStrategy {
                             //     return null;
                             // }
 
-                            String newClientMsg = request.toString();
-
-                            ServiceRecord nextService = getNextService(messageServicesTable, messagesIndex);
+                            nextService = getNextService(messageServicesTable, messagesIndex);
 
                             System.out.println("Sending request to messages server with port: " + nextService.getPort());
 
                             return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), nextService.getPort() );
+                        case "/users":
+                            nextService = getNextService(messageServicesTable, messagesIndex);
+
+                            System.out.println("Sending request to messages server with port: " + nextService.getPort());
+
+                            return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), nextService.getPort() );
+                        default:
+                            System.out.println("Serviço não implementado!");
                     }
                 }
 
@@ -327,13 +341,14 @@ public class UDPGateway implements GatewayStrategy {
     @Override
     public void failureDetector() {
         while(true) {
-            logServicesStatus();
+            // logServicesStatus();
 
             for (HashMap.Entry<String, ServiceRecord> entry : messageServicesTable.entrySet()) {
                 String key = entry.getKey();
                 ServiceRecord service = entry.getValue();
 
                 if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                    System.out.println("Servidor de Port: " + service.getPort() + " morreu");
                     service.setStatus(false);
                 }
             }
@@ -343,6 +358,7 @@ public class UDPGateway implements GatewayStrategy {
                 ServiceRecord service = entry.getValue();
 
                 if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                    System.out.println("Servidor de Port: " + service.getPort() + " morreu");
                     service.setStatus(false);
                 }
             }

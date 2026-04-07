@@ -120,6 +120,7 @@ public class UDPServer implements ServerStrategy{
 				return null;
             }
 			else {
+				System.out.println(response.toString());
 				response.setHeader("X-Client-IP" + ": " + request.getHeader("X-Client-IP"));
 				response.setHeader("X-Client-Port" + ": " + request.getHeader("X-Client-Port"));
 

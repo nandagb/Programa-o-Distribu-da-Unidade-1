@@ -59,7 +59,10 @@ public class TCPGateway implements GatewayStrategy{
                 case "users":
                     service = userServicesTable.get(key);
                     if (service == null){
-                        userServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
+                        InetAddress address = InetAddress.getByName(tokenizer.nextToken());
+                        int port = Integer.parseInt(tokenizer.nextToken());
+                        userServicesTable.put(key, new ServiceRecord(address, port));
+                        System.out.println("Servidor de Port: " + port + " iniciado");
                         return;
                     }
 
@@ -68,7 +71,10 @@ public class TCPGateway implements GatewayStrategy{
                     service = messageServicesTable.get(key);
 
                     if (service == null){
-                        messageServicesTable.put(key, new ServiceRecord(InetAddress.getByName(tokenizer.nextToken()), Integer.parseInt(tokenizer.nextToken())));
+                        InetAddress address = InetAddress.getByName(tokenizer.nextToken());
+                        int port = Integer.parseInt(tokenizer.nextToken());
+                        messageServicesTable.put(key, new ServiceRecord(address, port));
+                        System.out.println("Servidor de Port: " + port + " iniciado");
                         return;
                     }
             }
@@ -180,49 +186,63 @@ public class TCPGateway implements GatewayStrategy{
                 //retornar erro sla
             }
             else {
-                //roteia apenas para 9004 (messages 1) por enquanto
-                ServiceRecord nextService = getNextService(messageServicesTable, messagesIndex);
-
-                System.out.println("Sending request to messages server with port: " + nextService.getPort());
-
-                Socket serviceSocket = new Socket("localhost", nextService.getPort());
-                PrintWriter gatewayRequest = new PrintWriter(serviceSocket.getOutputStream());
-
-                System.out.println("Client Request");
-                System.out.println("REQUEST HEADERS: " + request.getHeaders());
-
-                gatewayRequest.println(request.getRequestLine());
-                gatewayRequest.println(request.getHeaders());
-
-                if (request.getContentLength() > 0 ) {
-                    System.out.println("REQUEST BODY: " + request.getBody());
-                    gatewayRequest.print(request.getBody());
+                String path = request.getPath();
+                ServiceRecord nextService = null;
+                switch(path) {
+                    case "/messages":
+                        nextService = getNextService(messageServicesTable, messagesIndex);
+                        break;
+                    case "/users":
+                        nextService = getNextService(userServicesTable, messagesIndex);
+                        break;
+                    default:
+                        System.out.println("Serviço não implementado!");
                 }
 
-                gatewayRequest.flush();
+                if (nextService != null) {
+                    System.out.println("Sending request to messages server with port: " + nextService.getPort());
 
-                BufferedReader serverResponse = new BufferedReader(new InputStreamReader(serviceSocket.getInputStream()));
-                PrintWriter gatewayResponse = new PrintWriter(connection.getOutputStream());
+                    Socket serviceSocket = new Socket("localhost", nextService.getPort());
+                    PrintWriter gatewayRequest = new PrintWriter(serviceSocket.getOutputStream());
 
-                HTTPResponse response = getHTTPResponse(serverResponse);
+                    System.out.println("Client Request");
+                    System.out.println("REQUEST HEADERS: " + request.getHeaders());
 
-                if (response == null) {
-                    System.out.println("Não foi possível processar a resposta!");
-                    //retornar erro sla
-                }
-                else {
-                    System.out.println("Server response");
-                    System.out.println("RESPONSE HEADERS: " + response.getHeaders());
-                    gatewayResponse.println(response.getStatusLine());
-                    gatewayResponse.println(response.getHeaders());
+                    gatewayRequest.println(request.getRequestLine());
+                    gatewayRequest.println(request.getHeaders());
 
-                    if (response.getContentLength() > 0 ) {
-                        System.out.println("RESPONSE BODY: " + response.getBody());
-                        gatewayResponse.print(response.getBody());
+                    if (request.getContentLength() > 0 ) {
+                        System.out.println("REQUEST BODY: " + request.getBody());
+                        gatewayRequest.print(request.getBody());
                     }
 
-                    gatewayResponse.flush();
+                    gatewayRequest.flush();
+
+                    BufferedReader serverResponse = new BufferedReader(new InputStreamReader(serviceSocket.getInputStream()));
+                    PrintWriter gatewayResponse = new PrintWriter(connection.getOutputStream());
+
+                    HTTPResponse response = getHTTPResponse(serverResponse);
+
+                    if (response == null) {
+                        System.out.println("Não foi possível processar a resposta!");
+                        //retornar erro sla
+                    }
+                    else {
+                        System.out.println("Server response");
+                        System.out.println("RESPONSE HEADERS: " + response.getHeaders());
+                        gatewayResponse.println(response.getStatusLine());
+                        gatewayResponse.println(response.getHeaders());
+
+                        if (response.getContentLength() > 0 ) {
+                            System.out.println("RESPONSE BODY: " + response.getBody());
+                            gatewayResponse.print(response.getBody());
+                        }
+
+                        gatewayResponse.flush();
+                    }
+
                 }
+
             }
         } catch (IOException e) {
             // TODO Auto-generated catch block
@@ -292,13 +312,14 @@ public class TCPGateway implements GatewayStrategy{
     @Override
     public void failureDetector() {
         while(true) {
-            logServicesStatus();
+            // logServicesStatus();
 
             for (HashMap.Entry<String, ServiceRecord> entry : messageServicesTable.entrySet()) {
                 String key = entry.getKey();
                 ServiceRecord service = entry.getValue();
 
                 if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                    System.out.println("Servidor de Port: " + service.getPort() + " morreu");
                     service.setStatus(false);
                 }
             }
@@ -308,6 +329,7 @@ public class TCPGateway implements GatewayStrategy{
                 ServiceRecord service = entry.getValue();
 
                 if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout) {
+                    System.out.println("Servidor de Port: " + service.getPort() + " morreu");
                     service.setStatus(false);
                 }
             }
