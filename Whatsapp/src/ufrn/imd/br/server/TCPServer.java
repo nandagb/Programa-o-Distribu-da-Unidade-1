@@ -87,42 +87,101 @@ public class TCPServer implements ServerStrategy {
 	  	return response;
    }
 
+   private HTTPResponse getHTTPErrorResponse(int code, String body) {
+        String protocol = "HTTP/1.1";
+        String status = HTTPUtils.mapStatus(code);
+        String contentType = "application/json";
+        int contentLength = body.length();
+
+        StringBuilder headersBuilder = new StringBuilder();
+        headersBuilder.append(protocol + " " + code + " " + status).append("\r\n");
+
+        HTTPResponse response = new HTTPResponse(protocol, code, status);
+
+        headersBuilder.append("Content-Type: " + contentType).append("\r\n");
+        headersBuilder.append("Content-Length: " + contentLength).append("\r\n");
+
+        response.setHeaders(headersBuilder.toString());
+        response.setContentLength(contentLength);
+        response.setBody(body);
+
+        return response;
+    }
+
+   private void handleConnectionError(Socket connection, int code, String body) {
+        HTTPResponse response = getHTTPErrorResponse(503, body);
+
+        try {
+            PrintWriter gatewayResponse = new PrintWriter(connection.getOutputStream());
+
+            gatewayResponse.println(response.getStatusLine());
+            gatewayResponse.println(response.getHeaders());
+
+            if (response.getContentLength() > 0 ) {
+                System.out.println("Body do Erro sendo retornado para o gateway: "  + response.getBody());
+                gatewayResponse.print(response.getBody());
+            }
+
+            gatewayResponse.flush();
+        } catch (IOException e) {
+            System.out.println("Não foi possível retornar o erro para o gateway: " + body);
+            // e.printStackTrace();
+        }
+    }
+
     private void processRequest(Socket connection) {
         System.out.println("Conection accepted!");
 
-        BufferedReader clientRequest;
+        BufferedReader clientRequest = null;
+        PrintWriter serverResponse = null;
         try {
-            clientRequest = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            try {
+                clientRequest = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            } catch (IOException e) {
+                handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o clientRequest\"}");
+                // e.printStackTrace();
+                return;
+            }
+
             HTTPRequest request = getHTTPRequest(clientRequest);
 
             if (request == null) {
                 System.out.println("Não foi possível processar a requisição!");
-                //retornar erro sla
+                return;
             }
-            else {
-                HTTPResponse response = getServiceResponse(request);
-                // System.out.println("REQUEST METHOD: " + request.getMethod());
-                // System.out.println("REQUEST PATH: " + request.getPath());
-                // System.out.println("REQUEST QUERY: " + request.getQueryString());
+            HTTPResponse response = getServiceResponse(request);
+            // System.out.println("REQUEST METHOD: " + request.getMethod());
+            // System.out.println("REQUEST PATH: " + request.getPath());
+            // System.out.println("REQUEST QUERY: " + request.getQueryString());
 
-                if (response == null) {
-                    System.out.println("Não foi possível processar a resposta!");
-                    //retornar erro sla
-                }
-                else {
-                    PrintWriter serverResponse = new PrintWriter(connection.getOutputStream());
-
-                    serverResponse.println(response.getStatusLine());
-                    serverResponse.println(response.getHeaders());
-                    if (response.getContentLength() > 0 ) {
-                        serverResponse.print(response.getBody());
-                    }
-                    serverResponse.flush();
-                }
+            if (response == null) {
+                System.out.println("Não foi possível processar a resposta!");
+                return;
             }
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+
+            try {
+                serverResponse = new PrintWriter(connection.getOutputStream());
+            } catch (IOException e) {
+                handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o serverResponse\"}");
+                // e.printStackTrace();
+                return;
+            }
+
+            serverResponse.println(response.getStatusLine());
+            serverResponse.println(response.getHeaders());
+
+            if (response.getContentLength() > 0 ) {
+                serverResponse.print(response.getBody());
+            }
+
+            serverResponse.flush();
+        } catch (Exception e) {
+            handleConnectionError(connection, 503, "{\"error\":\"Erro inesperado\"}");
+            // e.printStackTrace();
+        } finally {
+            try { connection.close(); } catch (Exception ignored) {}
+            try { if (clientRequest != null) clientRequest.close(); } catch (Exception ignored) {}
+            try { if (serverResponse != null) clientRequest.close(); } catch (Exception ignored) {}
         }
     }
 

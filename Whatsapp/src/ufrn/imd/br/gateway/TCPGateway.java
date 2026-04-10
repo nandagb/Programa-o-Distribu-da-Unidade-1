@@ -255,7 +255,7 @@ public class TCPGateway implements GatewayStrategy{
             gatewayResponse.println(response.getHeaders());
 
             if (response.getContentLength() > 0 ) {
-                System.out.println("Body do Erro sendo enviado sendo retornado pelo cliente: "  + response.getBody());
+                System.out.println("Body do Erro sendo retornado para o cliente: "  + response.getBody());
                 gatewayResponse.print(response.getBody());
             }
 
@@ -270,119 +270,131 @@ public class TCPGateway implements GatewayStrategy{
         // System.out.println("Conection accepted!");
 
         BufferedReader clientRequest = null;
-
-        try {
-            clientRequest = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-        } catch (IOException e) {
-            handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o clientRequest\"}");
-            // e.printStackTrace();
-            return;
-        }
-
-        HTTPRequest request = getHTTPRequest(clientRequest);
-        if (request == null) {
-            System.out.println("Não foi possível processar a requisição do Cliente!");
-            return;
-        }
-
-        String path = request.getPath();
-        ServiceRecord nextService = null;
-        switch(path) {
-            case "/messages":
-                synchronized (messageServicesTable) {
-                    nextService = getNextService(messageServicesTable, messagesIndex);
-                }
-
-                break;
-            case "/users":
-                synchronized (userServicesTable) {
-                    nextService = getNextService(userServicesTable, usersIndex);
-                }
-
-                break;
-            default:
-                System.out.println("Serviço não implementado!");
-                return;
-        }
-
-        if (nextService == null) {
-            System.out.println("Nenhum servidor disponível!");
-            return;
-        }
-
-        System.out.println("Sending request to messages server with port: " + nextService.getPort());
-
         Socket serviceSocket = null;
+        PrintWriter gatewayRequest = null;
+        PrintWriter gatewayResponse = null;
+        BufferedReader serverResponse = null;
+
         try {
-            serviceSocket = new Socket("localhost", nextService.getPort());
-        } catch (UnknownHostException e) {
-            handleConnectionError(connection, 503, "{\"error\":\"UnknownHostException: Não foi possível instanciar o serviceSocket com a porta " + nextService.getPort() + "\"}");
-            // e.printStackTrace();
-            return;
-        } catch (IOException e) {
-            handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o serviceSocket com a porta " + nextService.getPort() + "\"}");
-            // e.printStackTrace();
-            return;
-        }
-
-        PrintWriter gatewayRequest;
-        try {
-            gatewayRequest = new PrintWriter(serviceSocket.getOutputStream());
-            // System.out.println("Client Request");
-            // System.out.println("REQUEST HEADERS: " + request.getHeaders());
-
-            gatewayRequest.println(request.getRequestLine());
-            gatewayRequest.println(request.getHeaders());
-
-            if (request.getContentLength() > 0 ) {
-                System.out.println("REQUEST BODY: " + request.getBody());
-                gatewayRequest.print(request.getBody());
+            try {
+                clientRequest = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            } catch (IOException e) {
+                handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o clientRequest\"}");
+                // e.printStackTrace();
+                return;
             }
 
-            gatewayRequest.flush();
-        } catch (IOException e) {
-            handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o gatewayRequest\"}");
+            HTTPRequest request = getHTTPRequest(clientRequest);
+            if (request == null) {
+                System.out.println("Não foi possível processar a requisição do Cliente!");
+                return;
+            }
+
+            String path = request.getPath();
+            ServiceRecord nextService = null;
+            switch(path) {
+                case "/messages":
+                    synchronized (messageServicesTable) {
+                        nextService = getNextService(messageServicesTable, messagesIndex);
+                    }
+
+                    break;
+                case "/users":
+                    synchronized (userServicesTable) {
+                        nextService = getNextService(userServicesTable, usersIndex);
+                    }
+
+                    break;
+                default:
+                    System.out.println("Serviço não implementado!");
+                    return;
+            }
+
+            if (nextService == null) {
+                System.out.println("Nenhum servidor disponível!");
+                return;
+            }
+
+            System.out.println("Sending request to messages server with port: " + nextService.getPort());
+
+            try {
+                serviceSocket = new Socket("localhost", nextService.getPort());
+            } catch (UnknownHostException e) {
+                handleConnectionError(connection, 503, "{\"error\":\"UnknownHostException: Não foi possível instanciar o serviceSocket com a porta " + nextService.getPort() + "\"}");
+                // e.printStackTrace();
+                return;
+            } catch (IOException e) {
+                handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o serviceSocket com a porta " + nextService.getPort() + "\"}");
+                // e.printStackTrace();
+                return;
+            }
+
+            try {
+                gatewayRequest = new PrintWriter(serviceSocket.getOutputStream());
+                // System.out.println("Client Request");
+                // System.out.println("REQUEST HEADERS: " + request.getHeaders());
+
+                gatewayRequest.println(request.getRequestLine());
+                gatewayRequest.println(request.getHeaders());
+
+                if (request.getContentLength() > 0 ) {
+                    System.out.println("REQUEST BODY: " + request.getBody());
+                    gatewayRequest.print(request.getBody());
+                }
+
+                gatewayRequest.flush();
+            } catch (IOException e) {
+                handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o gatewayRequest\"}");
+                // e.printStackTrace();
+                return;
+            }
+
+            try {
+                serverResponse = new BufferedReader(new InputStreamReader(serviceSocket.getInputStream()));
+            } catch (IOException e) {
+                handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o serverResponse\"}");
+                // e.printStackTrace();
+                return;
+            }
+
+            try {
+                gatewayResponse = new PrintWriter(connection.getOutputStream());
+            } catch (IOException e) {
+                handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o gatewayResponse\"}");
+                // e.printStackTrace();
+                return;
+            }
+
+            HTTPResponse response = getHTTPResponse(serverResponse);
+
+            if (response == null) {
+                System.out.println("Não foi possível processar a resposta do Servidor!");
+                return;
+                //retornar erro sla
+            }
+
+            // System.out.println("Server response");
+            // System.out.println("RESPONSE HEADERS: " + response.getHeaders());
+            gatewayResponse.println(response.getStatusLine());
+            gatewayResponse.println(response.getHeaders());
+
+            if (response.getContentLength() > 0 ) {
+                System.out.println("RESPONSE BODY FROM " + serviceSocket.getPort() + ": " + response.getBody());
+                gatewayResponse.print(response.getBody());
+            }
+
+            gatewayResponse.flush();
+        } catch (Exception e) {
+            handleConnectionError(connection, 503, "{\"error\":\"Erro inesperado\"}");
             // e.printStackTrace();
-            return;
+        } finally {
+            try { connection.close(); } catch (Exception ignored) {}
+            try { if (clientRequest != null) clientRequest.close(); } catch (Exception ignored) {}
+            try { if (serviceSocket != null) serviceSocket.close(); } catch (Exception ignored) {}
+            try { if (gatewayRequest != null) gatewayRequest.close(); } catch (Exception ignored) {}
+            try { if (gatewayResponse != null) gatewayResponse.close(); } catch (Exception ignored) {}
+            try { if (serverResponse != null) serverResponse.close(); } catch (Exception ignored) {}
         }
-
-        BufferedReader serverResponse = null;
-        try {
-            serverResponse = new BufferedReader(new InputStreamReader(serviceSocket.getInputStream()));
-        } catch (IOException e) {
-            handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o serverResponse\"}");
-            // e.printStackTrace();
-            return;
-        }
-
-        PrintWriter gatewayResponse = null;
-        try {
-            gatewayResponse = new PrintWriter(connection.getOutputStream());
-        } catch (IOException e) {
-            handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o gatewayResponse\"}");
-            // e.printStackTrace();
-            return;
-        }
-
-        HTTPResponse response = getHTTPResponse(serverResponse);
-
-        if (response == null) {
-            System.out.println("Não foi possível processar a resposta do Servidor!");
-            return;
-            //retornar erro sla
-        }
-
-        // System.out.println("Server response");
-        // System.out.println("RESPONSE HEADERS: " + response.getHeaders());
-        gatewayResponse.println(response.getStatusLine());
-        gatewayResponse.println(response.getHeaders());
-
-        if (response.getContentLength() > 0 ) {
-            System.out.println("RESPONSE BODY FROM " + serviceSocket.getPort() + ": " + response.getBody());
-            gatewayResponse.print(response.getBody());
-        }
-
-        gatewayResponse.flush();
     }
 
     @Override
