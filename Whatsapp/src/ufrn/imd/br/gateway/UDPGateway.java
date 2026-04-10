@@ -246,7 +246,7 @@ public class UDPGateway implements GatewayStrategy {
 
                             return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), nextService.getPort() );
                         case "/users":
-                            nextService = getNextService(messageServicesTable, messagesIndex);
+                            nextService = getNextService(messageServicesTable, usersIndex);
 
                             System.out.println("Sending request to messages server with port: " + nextService.getPort());
 

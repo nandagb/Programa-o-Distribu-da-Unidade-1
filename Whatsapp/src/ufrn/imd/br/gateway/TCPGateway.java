@@ -58,45 +58,64 @@ public class TCPGateway implements GatewayStrategy{
         StringTokenizer tokenizer = new StringTokenizer(key, ":");
         ServiceRecord service;
 
-        try {
-            String serviceType = tokenizer.nextToken();
+        String serviceType = tokenizer.nextToken();
 
-            switch(serviceType){
-                case "users":
+        switch(serviceType){
+            case "users":
+                synchronized (userServicesTable) {
                     service = userServicesTable.get(key);
+
                     if (service == null){
-                        InetAddress address = InetAddress.getByName(tokenizer.nextToken());
+                        InetAddress address;
+                        String addressName = tokenizer.nextToken();
+
+                        try {
+                            address = InetAddress.getByName(addressName);
+                        } catch (UnknownHostException e) {
+                            System.out.println("UnknownHostException: Não foi possível salvar o serviço com host: " + addressName);
+                            // e.printStackTrace();
+                            return;
+                        }
+
                         int port = Integer.parseInt(tokenizer.nextToken());
                         userServicesTable.put(key, new ServiceRecord(address, port));
                         System.out.println("Servidor de Port: " + port + " iniciado");
+
                         return;
                     }
+                }
 
-                    break;
-                default:
+                break;
+            default:
+                synchronized (messageServicesTable) {
                     service = messageServicesTable.get(key);
 
                     if (service == null){
-                        InetAddress address = InetAddress.getByName(tokenizer.nextToken());
+                        String addressName = tokenizer.nextToken();
+                        InetAddress address;
+
+                        try {
+                            address = InetAddress.getByName(addressName);
+                        } catch (UnknownHostException e) {
+                            System.out.println("UnknownHostException: Não foi possível salvar o serviço com host: " + addressName);
+                            // e.printStackTrace();
+                            return;
+                        }
+
                         int port = Integer.parseInt(tokenizer.nextToken());
                         messageServicesTable.put(key, new ServiceRecord(address, port));
                         System.out.println("Servidor de Port: " + port + " iniciado");
+
                         return;
                     }
-            }
-
-            if (!service.getStatus()) {
-                System.out.println("Servidor de Port: " + service.getPort() + " iniciado");
-            }
-
-            service.refreshHeartBeat();
-        } catch (NumberFormatException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (UnknownHostException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+                }
         }
+
+        if (!service.getStatus()) {
+            System.out.println("Servidor de Port: " + service.getPort() + " iniciado");
+        }
+
+        service.refreshHeartBeat();
     }
 
     private void logServicesStatus() {
@@ -125,70 +144,90 @@ public class TCPGateway implements GatewayStrategy{
 
         try {
             firstHeader = clientRequest.readLine();
-            HTTPRequest request = new HTTPRequest(firstHeader);
+        } catch (IOException e) {
+            System.out.println("IOException: Não foi possível ler a requestLine da requisição em getHTTPRequest");
+            // e.printStackTrace();
+            return null;
+        }
 
-            String line;
+        HTTPRequest request = new HTTPRequest(firstHeader);
+
+        String line;
+        try {
             while ((line = clientRequest.readLine()) != null && !line.isEmpty()) {
                 headersBuilder.append(line).append("\r\n");
                 if (line.startsWith("Content-Length:")) {
                     request.setContentLength(line);
                 }
             }
-            request.setHeaders(headersBuilder.toString());
-            if (request.getContentLength() > 0) {
-                char[] body = new char[request.getContentLength()];
-                clientRequest.read(body, 0, request.getContentLength());
-                request.setBody(body);
-            }
-
-            return request;
-
         } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            System.out.println("IOException: Não foi possível ler os headers da requisição em getHTTPRequest");
+            // e.printStackTrace();
             return null;
         }
+
+        request.setHeaders(headersBuilder.toString());
+        if (request.getContentLength() > 0) {
+            char[] body = new char[request.getContentLength()];
+            try {
+                clientRequest.read(body, 0, request.getContentLength());
+            } catch (IOException e) {
+                System.out.println("IOException: Não foi possível ler oo body da requisição em getHTTPRequest");
+                // e.printStackTrace();
+                return null;
+            }
+
+            request.setBody(body);
+        }
+
+        return request;
     }
 
     private HTTPResponse getHTTPResponse(BufferedReader serverResponse) {
         StringBuilder headersBuilder = new StringBuilder();
         String firstHeader;
-
         try {
             firstHeader = serverResponse.readLine();
-            HTTPResponse response = new HTTPResponse(firstHeader);
+        } catch (IOException e) {
+            // e.printStackTrace();
+            return getHTTPErrorResponse(503, "{\"error\":\"IOException: Não foi possível ler a statusLine da resposta em getHTTPResponse\"}");
+        }
 
-            String line;
+        HTTPResponse response = new HTTPResponse(firstHeader);
+
+        String line;
+        try {
             while ((line = serverResponse.readLine()) != null && !line.isEmpty()) {
                 headersBuilder.append(line).append("\r\n");
                 if (line.startsWith("Content-Length:")) {
                     response.setContentLength(line);
                 }
             }
-
-            response.setHeaders(headersBuilder.toString());
-
-            if (response.getContentLength() > 0) {
-                char[] body = new char[response.getContentLength()];
-                serverResponse.read(body, 0, response.getContentLength());
-                response.setBody(body);
-            }
-
-            return response;
-
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             // e.printStackTrace();
-            // return null;
-            return getHTTPErrorResponse(503);
+            return getHTTPErrorResponse(503, "{\"error\":\"IOException: Não foi possível ler os headers da resposta em getHTTPResponse\"}");
         }
+
+        response.setHeaders(headersBuilder.toString());
+
+        if (response.getContentLength() > 0) {
+            char[] body = new char[response.getContentLength()];
+            try {
+                serverResponse.read(body, 0, response.getContentLength());
+            } catch (IOException e) {
+                // e.printStackTrace();
+                return getHTTPErrorResponse(503, "{\"error\":\"IOException: Não foi possível ler o body da resposta em getHTTPResponse\"}");
+            }
+            response.setBody(body);
+        }
+
+        return response;
     }
 
-    private HTTPResponse getHTTPErrorResponse(int code) {
+    private HTTPResponse getHTTPErrorResponse(int code, String body) {
         String protocol = "HTTP/1.1";
         String status = HTTPUtils.mapStatus(code);
         String contentType = "application/json";
-        String body = "{\"error\":\"resource not found\"}";
         int contentLength = body.length();
 
         StringBuilder headersBuilder = new StringBuilder();
@@ -206,101 +245,144 @@ public class TCPGateway implements GatewayStrategy{
         return response;
     }
 
+    private void handleConnectionError(Socket connection, int code, String body) {
+        HTTPResponse response = getHTTPErrorResponse(503, body);
+
+        try {
+            PrintWriter gatewayResponse = new PrintWriter(connection.getOutputStream());
+
+            gatewayResponse.println(response.getStatusLine());
+            gatewayResponse.println(response.getHeaders());
+
+            if (response.getContentLength() > 0 ) {
+                System.out.println("Body do Erro sendo enviado sendo retornado pelo cliente: "  + response.getBody());
+                gatewayResponse.print(response.getBody());
+            }
+
+            gatewayResponse.flush();
+        } catch (IOException e) {
+            System.out.println("Não foi possível retornar o erro para o cliente: " + body);
+            // e.printStackTrace();
+        }
+    }
+
     private void processRequest(Socket connection) {
         // System.out.println("Conection accepted!");
 
-        BufferedReader clientRequest;
+        BufferedReader clientRequest = null;
+
         try {
             clientRequest = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            HTTPRequest request = getHTTPRequest(clientRequest);
-
-            if (request == null) {
-                System.out.println("Não foi possível processar a requisição!");
-                //retornar erro sla
-            }
-            else {
-                String path = request.getPath();
-                ServiceRecord nextService = null;
-                switch(path) {
-                    case "/messages":
-                        nextService = getNextService(messageServicesTable, messagesIndex);
-                        break;
-                    case "/users":
-                        nextService = getNextService(userServicesTable, messagesIndex);
-                        break;
-                    default:
-                        System.out.println("Serviço não implementado!");
-                }
-
-                if (nextService != null) {
-                    System.out.println("Sending request to messages server with port: " + nextService.getPort());
-
-                    Socket serviceSocket = new Socket("localhost", nextService.getPort());
-                    PrintWriter gatewayRequest = new PrintWriter(serviceSocket.getOutputStream());
-
-                    // System.out.println("Client Request");
-                    // System.out.println("REQUEST HEADERS: " + request.getHeaders());
-
-                    gatewayRequest.println(request.getRequestLine());
-                    gatewayRequest.println(request.getHeaders());
-
-                    if (request.getContentLength() > 0 ) {
-                        System.out.println("REQUEST BODY: " + request.getBody());
-                        gatewayRequest.print(request.getBody());
-                    }
-
-                    gatewayRequest.flush();
-
-                    BufferedReader serverResponse = new BufferedReader(new InputStreamReader(serviceSocket.getInputStream()));
-                    PrintWriter gatewayResponse = new PrintWriter(connection.getOutputStream());
-
-                    HTTPResponse response = getHTTPResponse(serverResponse);
-
-                    if (response == null) {
-                        System.out.println("Não foi possível processar a resposta!");
-                        //retornar erro sla
-                    }
-                    else {
-                        // System.out.println("Server response");
-                        // System.out.println("RESPONSE HEADERS: " + response.getHeaders());
-                        gatewayResponse.println(response.getStatusLine());
-                        gatewayResponse.println(response.getHeaders());
-
-                        if (response.getContentLength() > 0 ) {
-                            System.out.println("RESPONSE BODY: " + response.getBody());
-                            gatewayResponse.print(response.getBody());
-                        }
-
-                        gatewayResponse.flush();
-                    }
-
-                }
-                else {
-                    System.out.println("Nenhum servidor disponível!");
-                }
-
-            }
         } catch (IOException e) {
-            // TODO Auto-generated catch block
-            HTTPResponse response = getHTTPErrorResponse(503);
-            try {
-                PrintWriter gatewayResponse = new PrintWriter(connection.getOutputStream());
-                gatewayResponse.println(response.getStatusLine());
-                gatewayResponse.println(response.getHeaders());
-
-                if (response.getContentLength() > 0 ) {
-                    System.out.println("RESPONSE BODY: " + response.getBody());
-                    gatewayResponse.print(response.getBody());
-                }
-
-                gatewayResponse.flush();
-            } catch (IOException e1) {
-                // TODO Auto-generated catch block
-                e1.printStackTrace();
-            }
+            handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o clientRequest\"}");
             // e.printStackTrace();
+            return;
         }
 
+        HTTPRequest request = getHTTPRequest(clientRequest);
+        if (request == null) {
+            System.out.println("Não foi possível processar a requisição do Cliente!");
+            return;
+        }
+
+        String path = request.getPath();
+        ServiceRecord nextService = null;
+        switch(path) {
+            case "/messages":
+                synchronized (messageServicesTable) {
+                    nextService = getNextService(messageServicesTable, messagesIndex);
+                }
+
+                break;
+            case "/users":
+                synchronized (userServicesTable) {
+                    nextService = getNextService(userServicesTable, usersIndex);
+                }
+
+                break;
+            default:
+                System.out.println("Serviço não implementado!");
+                return;
+        }
+
+        if (nextService == null) {
+            System.out.println("Nenhum servidor disponível!");
+            return;
+        }
+
+        System.out.println("Sending request to messages server with port: " + nextService.getPort());
+
+        Socket serviceSocket = null;
+        try {
+            serviceSocket = new Socket("localhost", nextService.getPort());
+        } catch (UnknownHostException e) {
+            handleConnectionError(connection, 503, "{\"error\":\"UnknownHostException: Não foi possível instanciar o serviceSocket com a porta " + nextService.getPort() + "\"}");
+            // e.printStackTrace();
+            return;
+        } catch (IOException e) {
+            handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o serviceSocket com a porta " + nextService.getPort() + "\"}");
+            // e.printStackTrace();
+            return;
+        }
+
+        PrintWriter gatewayRequest;
+        try {
+            gatewayRequest = new PrintWriter(serviceSocket.getOutputStream());
+            // System.out.println("Client Request");
+            // System.out.println("REQUEST HEADERS: " + request.getHeaders());
+
+            gatewayRequest.println(request.getRequestLine());
+            gatewayRequest.println(request.getHeaders());
+
+            if (request.getContentLength() > 0 ) {
+                System.out.println("REQUEST BODY: " + request.getBody());
+                gatewayRequest.print(request.getBody());
+            }
+
+            gatewayRequest.flush();
+        } catch (IOException e) {
+            handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o gatewayRequest\"}");
+            // e.printStackTrace();
+            return;
+        }
+
+        BufferedReader serverResponse = null;
+        try {
+            serverResponse = new BufferedReader(new InputStreamReader(serviceSocket.getInputStream()));
+        } catch (IOException e) {
+            handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o serverResponse\"}");
+            // e.printStackTrace();
+            return;
+        }
+
+        PrintWriter gatewayResponse = null;
+        try {
+            gatewayResponse = new PrintWriter(connection.getOutputStream());
+        } catch (IOException e) {
+            handleConnectionError(connection, 503, "{\"error\":\"IOException: Não foi possível instanciar o gatewayResponse\"}");
+            // e.printStackTrace();
+            return;
+        }
+
+        HTTPResponse response = getHTTPResponse(serverResponse);
+
+        if (response == null) {
+            System.out.println("Não foi possível processar a resposta do Servidor!");
+            return;
+            //retornar erro sla
+        }
+
+        // System.out.println("Server response");
+        // System.out.println("RESPONSE HEADERS: " + response.getHeaders());
+        gatewayResponse.println(response.getStatusLine());
+        gatewayResponse.println(response.getHeaders());
+
+        if (response.getContentLength() > 0 ) {
+            System.out.println("RESPONSE BODY FROM " + serviceSocket.getPort() + ": " + response.getBody());
+            gatewayResponse.print(response.getBody());
+        }
+
+        gatewayResponse.flush();
     }
 
     @Override
@@ -317,8 +399,8 @@ public class TCPGateway implements GatewayStrategy{
 
                 }
             } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                System.out.println("IOException: Erro ao iniciar o servidor");
+                // e.printStackTrace();
             }
     }
 
@@ -339,8 +421,7 @@ public class TCPGateway implements GatewayStrategy{
                     // HTTPRequest request = null;
 
                     if (request == null) {
-                        System.out.println("Não foi possível processar a requisição!");
-                        //retornar erro sla
+                        System.out.println("Não foi possível processar a requisição de Heartbeat do Servidor!");
                     }
                     else {
                         // System.out.println("Client Request");
@@ -356,8 +437,8 @@ public class TCPGateway implements GatewayStrategy{
 
                 }
             } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                System.out.println("IOException: Erro ao iniciar o HeartBeat Listener");
+                // e.printStackTrace();
             }
     }
 
@@ -366,31 +447,35 @@ public class TCPGateway implements GatewayStrategy{
         while(true) {
             // logServicesStatus();
 
-            for (HashMap.Entry<String, ServiceRecord> entry : messageServicesTable.entrySet()) {
-                String key = entry.getKey();
-                ServiceRecord service = entry.getValue();
+            synchronized (messageServicesTable) {
+                for (HashMap.Entry<String, ServiceRecord> entry : messageServicesTable.entrySet()) {
+                    String key = entry.getKey();
+                    ServiceRecord service = entry.getValue();
 
-                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
-                    System.out.println("Servidor de Port: " + service.getPort() + " morreu");
-                    service.setStatus(false);
+                    if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
+                        System.out.println("Servidor de Port: " + service.getPort() + " morreu");
+                        service.setStatus(false);
+                    }
                 }
             }
 
-            for (HashMap.Entry<String, ServiceRecord> entry : userServicesTable.entrySet()) {
-                String key = entry.getKey();
-                ServiceRecord service = entry.getValue();
+            synchronized (userServicesTable) {
+                for (HashMap.Entry<String, ServiceRecord> entry : userServicesTable.entrySet()) {
+                    String key = entry.getKey();
+                    ServiceRecord service = entry.getValue();
 
-                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
-                    System.out.println("Servidor de Port: " + service.getPort() + " morreu");
-                    service.setStatus(false);
+                    if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
+                        System.out.println("Servidor de Port: " + service.getPort() + " morreu");
+                        service.setStatus(false);
+                    }
                 }
             }
 
             try {
                 Thread.sleep(failureDetectorInterval);
             } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                System.out.println("InterruptedException: Erro ao iniciar o failureDetector!");
+                // e.printStackTrace();
             }
         }
     }
