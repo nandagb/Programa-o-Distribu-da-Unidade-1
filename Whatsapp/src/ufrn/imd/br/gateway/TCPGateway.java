@@ -46,10 +46,6 @@ public class TCPGateway implements GatewayStrategy{
         int size = services.size();
         int i = index.getAndUpdate(v -> (v + 1) % size);
 
-        if (i >= size) {
-            i = 0;
-        }
-
         // old value of index
         return services.get(i);
     }
