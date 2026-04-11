@@ -122,7 +122,7 @@ public class UDPServer implements ServerStrategy{
 	public void interfaceMethod(Service service){
 		this.service = service;
 
-        System.out.println("UDP Server Messenger started");
+        System.out.println("UDP Server Messenger iniciado");
 
 		try {
 			serverSocket = new DatagramSocket(this.port);

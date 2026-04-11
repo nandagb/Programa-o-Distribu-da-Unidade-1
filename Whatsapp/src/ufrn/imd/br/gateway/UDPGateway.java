@@ -155,6 +155,7 @@ public class UDPGateway implements GatewayStrategy {
                     if (read == -1) break;
                     totalRead += read;
                 }
+
                 request.setBody(body);
             }
 

@@ -51,9 +51,8 @@ public class Application {
             default:
                 System.out.println("Opção inválida!");                
         }
-        System.out.println("DEPOIS DO SWITCH DO SERVER");
 
-        System.out.println("SERVICE OPTION: " + service);
+        // System.out.println("SERVICE OPTION: " + service);
         // Service service;
 
         switch(service) {

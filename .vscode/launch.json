@@ -11,19 +11,12 @@
             "mainClass": "ufrn.imd.br.gateway.APIGateway",
             "args": ["udp"]
         },
-        {
-            "type": "java",
-            "name": "Run TCP Gateway",
-            "request": "launch",
-            "mainClass": "ufrn.imd.br.gateway.APIGateway",
-            "args": ["tcp"]
-        },
-        {
-            "type": "java",
-            "name": "Run UDP Client",
-            "request": "launch",
-            "mainClass": "ufrn.imd.br.client.UDPClient",
-        },
+        // {
+        //     "type": "java",
+        //     "name": "Run UDP Client",
+        //     "request": "launch",
+        //     "mainClass": "ufrn.imd.br.client.UDPClient",
+        // },
         {
             "type": "java",
             "name": "Run UDP Messages 1",
@@ -51,6 +44,13 @@
             "request": "launch",
             "mainClass": "ufrn.imd.br.server.Application",
             "args": ["udp", "users", "2"]
+        },
+        {
+            "type": "java",
+            "name": "Run TCP Gateway",
+            "request": "launch",
+            "mainClass": "ufrn.imd.br.gateway.APIGateway",
+            "args": ["tcp"]
         },
         {
             "type": "java",
