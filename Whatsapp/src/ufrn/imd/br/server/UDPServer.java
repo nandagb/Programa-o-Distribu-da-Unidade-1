@@ -92,8 +92,6 @@ public class UDPServer implements ServerStrategy{
         String message = new String(packet.getData(), 0,       packet.getLength());
 		BufferedReader messageReader = new BufferedReader(new StringReader(message));
 
-		System.out.println("Servidor recebeu essa mensagem: " + message);
-
 		HTTPRequest request = getHTTPRequest(messageReader);
 
 		if (request == null) {
@@ -110,7 +108,6 @@ public class UDPServer implements ServerStrategy{
 				return null;
             }
 			else {
-				System.out.println(response.toString());
 				response.setHeader("X-Client-IP" + ": " + request.getHeader("X-Client-IP"));
 				response.setHeader("X-Client-Port" + ": " + request.getHeader("X-Client-Port"));
 

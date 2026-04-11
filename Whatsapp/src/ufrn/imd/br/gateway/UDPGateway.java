@@ -17,6 +17,7 @@ import java.util.concurrent.*;
 import ufrn.imd.br.gateway.strategy.GatewayStrategy;
 import ufrn.imd.br.http.HTTPRequest;
 import ufrn.imd.br.http.HTTPResponse;
+import ufrn.imd.br.http.HTTPUtils;
 import ufrn.imd.br.model.ServiceRecord;
 
 public class UDPGateway implements GatewayStrategy {
@@ -49,45 +50,61 @@ public class UDPGateway implements GatewayStrategy {
         StringTokenizer tokenizer = new StringTokenizer(key, ":");
         ServiceRecord service;
 
-        try {
-            String serviceType = tokenizer.nextToken();
+        String serviceType = tokenizer.nextToken();
 
-            switch(serviceType){
-                case "users":
+        switch(serviceType){
+            case "users":
+                synchronized (userServicesTable) {
                     service = userServicesTable.get(key);
+                    String addressName = tokenizer.nextToken();
 
                     if (service == null){
-                        InetAddress address = InetAddress.getByName(tokenizer.nextToken());
+                        InetAddress address;
+
+                        try {
+                            address = InetAddress.getByName(addressName);
+                        } catch (UnknownHostException e) {
+                            System.out.println("UnknownHostException: Não foi possível salvar o serviço com host: " + addressName);
+                            // e.printStackTrace();
+                            return;
+                        }
+
                         int port = Integer.parseInt(tokenizer.nextToken());
                         userServicesTable.put(key, new ServiceRecord(address, port));
                         System.out.println("Servidor de Port: " + port + " iniciado");
                         return;
                     }
+                }
 
-                    break;
-                default:
+                break;
+            default:
+                synchronized (messageServicesTable) {
                     service = messageServicesTable.get(key);
+                    String addressName = tokenizer.nextToken();
 
                     if (service == null){
-                        InetAddress address = InetAddress.getByName(tokenizer.nextToken());
+                        InetAddress address;
+
+                        try {
+                            address = InetAddress.getByName(addressName);
+                        } catch (UnknownHostException e) {
+                            System.out.println("UnknownHostException: Não foi possível salvar o serviço com host: " + addressName);
+                            // e.printStackTrace();
+                            return;
+                        }
+
                         int port = Integer.parseInt(tokenizer.nextToken());
                         messageServicesTable.put(key, new ServiceRecord(address, port));
                         System.out.println("Servidor de Port: " + port + " iniciado");
                         return;
                     }
-            }
-
-            if (!service.getStatus()) {
-                System.out.println("Servidor de Port: " + service.getPort() + " iniciado");
-            }
-            service.refreshHeartBeat();
-        } catch (NumberFormatException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (UnknownHostException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+                }
         }
+
+        if (!service.getStatus()) {
+            System.out.println("Servidor de Port: " + service.getPort() + " iniciado");
+        }
+        service.refreshHeartBeat();
     }
 
     private void logServicesStatus() {
@@ -160,7 +177,7 @@ public class UDPGateway implements GatewayStrategy {
 
             String line;
             while ((line = serverResponse.readLine()) != null && !line.isEmpty()) {
-                System.out.println("READING LINE OF SERVER RESPONSE: " + line);
+                // System.out.println("READING LINE OF SERVER RESPONSE: " + line);
                 if (line.startsWith("Content-Length:")) {
                     response.setContentLength(line);
                 }
@@ -185,88 +202,84 @@ public class UDPGateway implements GatewayStrategy {
     }
 
     private DatagramPacket processRequest(DatagramPacket packet) {
-        System.out.println("Conection accepted!");
-        // converte mensagem do cliente em bytes para texto
+        // System.out.println("Connection accepted!");
                                             // dados,              posição inicial, quantidade de bytes
         String message = new String(packet.getData(), 0,       packet.getLength());
-        System.out.println("MESSAGE RECEIVED IN GATEWAY: " + message);
         int clientPort = packet.getPort();
         InetAddress clientAddress = packet.getAddress();
-        // decodes message
-        // System.out.println("UDP Gateway received this message from the client of port: " + packet.getPort() + ", " + message);
 
-        try {
-            packet.setAddress(InetAddress.getByName("localhost"));
+        BufferedReader messageReader = new BufferedReader(new StringReader(message));
 
-            BufferedReader messageReader = new BufferedReader(new StringReader(message));
+        // Response from Server
+        if (message.startsWith("HTTP/")) {
+            HTTPResponse response = getHTTPResponse(messageReader);
+            String newServerResponse = response.toString();
+            String ip = response.getHeader("X-Client-IP");
 
-            if (message.startsWith("HTTP/")) {
-                System.out.println("Resposta do Servidor" + message);
+            if (ip.startsWith("/")) {
+                ip = ip.substring(1);
+            }
 
-                HTTPResponse response = getHTTPResponse(messageReader);
-                String newServerResponse = response.toString();
-                String ip = response.getHeader("X-Client-IP");
-
-                if (ip.startsWith("/")) {
-                    ip = ip.substring(1);
-                }
-
-                InetAddress ogClientAddress = InetAddress.getByName(ip);
-                int ogclientPort = Integer.parseInt(response.getHeader("X-Client-Port"));
-
-                return new DatagramPacket( newServerResponse.getBytes(), newServerResponse.getBytes().length, ogClientAddress, ogclientPort );
-            } else {
-                System.out.println("Requisição do Cliente");
-
-                HTTPRequest request = getHTTPRequest(messageReader);
-
-                if (request == null) {
-                    System.out.println("Não foi possível processar a requisição!");
-                    //retornar erro sla
-                    return null;
-                }
-                else {
-                    request.setHeader("X-Client-IP: " + clientAddress);
-                    request.setHeader("X-Client-Port: " + clientPort);
-
-                    System.out.println("PATH FROM UDP REQUEST: " + request.getPath());
-                    String path = request.getPath();
-                    String newClientMsg = request.toString();
-                    ServiceRecord nextService = null;
-                    switch (path) {
-                        case "/messages":
-                            // if (messageServicesTable.isEmpty()) {
-                            //     System.out.println("No available server!");
-                            //     return null;
-                            // }
-
-                            nextService = getNextService(messageServicesTable, messagesIndex);
-
-                            System.out.println("Sending request to messages server with port: " + nextService.getPort());
-
-                            return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), nextService.getPort() );
-                        case "/users":
-                            nextService = getNextService(messageServicesTable, usersIndex);
-
-                            System.out.println("Sending request to messages server with port: " + nextService.getPort());
-
-                            return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), nextService.getPort() );
-                        default:
-                            System.out.println("Serviço não implementado!");
-                    }
-                }
-
-                // TEMPORÁRIO; REMOVER DEPOIS
+            InetAddress ogClientAddress;
+            try {
+                ogClientAddress = InetAddress.getByName(ip);
+            } catch (UnknownHostException e) {
+                System.out.println("{\"error\":\"UnknownHostException: Não foi possível instanciar o endereço do cliente\"}");
                 return null;
             }
-        } catch (UnknownHostException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            return null;
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            return null;
+
+            int ogclientPort = Integer.parseInt(response.getHeader("X-Client-Port"));
+
+            if (response.getContentLength() > 0 ) {
+				System.out.println("RESPONSE BODY FROM " + packet.getPort() + ": " + response.getBody());
+			}
+
+            return new DatagramPacket( newServerResponse.getBytes(), newServerResponse.getBytes().length, ogClientAddress, ogclientPort );
+        } else {
+            //Request from Client
+            HTTPRequest request = getHTTPRequest(messageReader);
+
+            if (request == null) {
+                System.out.println("Não foi possível processar a requisição!");
+                return null;
+            }
+            else {
+                request.setHeader("X-Client-IP: " + clientAddress);
+                request.setHeader("X-Client-Port: " + clientPort);
+
+                String path = request.getPath();
+                String newClientMsg = request.toString();
+                ServiceRecord nextService = null;
+                switch (path) {
+                    case "/messages":
+                        synchronized (messageServicesTable) {
+                            nextService = getNextService(messageServicesTable, messagesIndex);
+                        }
+
+                        break;
+                    case "/users":
+                        synchronized (userServicesTable) {
+                            nextService = getNextService(userServicesTable, usersIndex);
+                        }
+
+                        break;
+                    default:
+                        System.out.println("Serviço não implementado!");
+                }
+
+                if (nextService == null) {
+                    System.out.println("Nenhum servidor disponível!");
+                    return null;
+                }
+
+                System.out.println("Enviando requisição para servidor com porta: " + nextService.getPort());
+
+                if (request.getContentLength() > 0 ) {
+                    System.out.println("REQUEST BODY: " + request.getBody());
+                }
+
+                return new DatagramPacket( newClientMsg.getBytes(), newClientMsg.getBytes().length, packet.getAddress(), nextService.getPort() );
+            }
         }
     }
 
@@ -346,23 +359,27 @@ public class UDPGateway implements GatewayStrategy {
         while(true) {
             // logServicesStatus();
 
-            for (HashMap.Entry<String, ServiceRecord> entry : messageServicesTable.entrySet()) {
-                String key = entry.getKey();
-                ServiceRecord service = entry.getValue();
+            synchronized (messageServicesTable) {
+                for (HashMap.Entry<String, ServiceRecord> entry : messageServicesTable.entrySet()) {
+                    String key = entry.getKey();
+                    ServiceRecord service = entry.getValue();
 
-                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
-                    System.out.println("Servidor de Port: " + service.getPort() + " morreu");
-                    service.setStatus(false);
+                    if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
+                        System.out.println("Servidor de Port: " + service.getPort() + " morreu");
+                        service.setStatus(false);
+                    }
                 }
             }
 
-            for (HashMap.Entry<String, ServiceRecord> entry : userServicesTable.entrySet()) {
-                String key = entry.getKey();
-                ServiceRecord service = entry.getValue();
+            synchronized (userServicesTable) {
+                for (HashMap.Entry<String, ServiceRecord> entry : userServicesTable.entrySet()) {
+                    String key = entry.getKey();
+                    ServiceRecord service = entry.getValue();
 
-                if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
-                    System.out.println("Servidor de Port: " + service.getPort() + " morreu");
-                    service.setStatus(false);
+                    if (System.currentTimeMillis() - service.getLastHeartbeat() > heartBeatTimeout && service.getStatus()) {
+                        System.out.println("Servidor de Port: " + service.getPort() + " morreu");
+                        service.setStatus(false);
+                    }
                 }
             }
 

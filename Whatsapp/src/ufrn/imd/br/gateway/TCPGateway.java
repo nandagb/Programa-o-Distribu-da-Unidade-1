@@ -302,7 +302,7 @@ public class TCPGateway implements GatewayStrategy{
 
                     break;
                 default:
-                    System.out.println("Serviço não implementado!");
+                    handleConnectionError(connection, 503, "{\"error\":\" Serviço " + path + "não implementado!\"}");
                     return;
             }
 
@@ -311,7 +311,7 @@ public class TCPGateway implements GatewayStrategy{
                 return;
             }
 
-            System.out.println("Sending request to messages server with port: " + nextService.getPort());
+            System.out.println("Enviando requisição para servidor com porta: " + nextService.getPort());
 
             try {
                 serviceSocket = new Socket("localhost", nextService.getPort());
@@ -366,7 +366,6 @@ public class TCPGateway implements GatewayStrategy{
             if (response == null) {
                 System.out.println("Não foi possível processar a resposta do Servidor!");
                 return;
-                //retornar erro sla
             }
 
             // System.out.println("Server response");
